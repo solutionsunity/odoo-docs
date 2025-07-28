@@ -14,6 +14,10 @@
   "workspace": {
     "root": "/opt/odoo",
     "workarea": "/opt/odoo/workarea",
+    "repositories": {
+      "project_modules": "/opt/odoo/workarea/your-project",
+      "additional_modules": "/opt/odoo/workarea/modules"
+    },
     "addons_paths": {
       "free": "/opt/addons/17.0",
       "paid": "/opt/addons/17.0-paid", 
@@ -21,13 +25,28 @@
       "custom": "/opt/addons/17.0-dx"
     }
   },
+  "projects": {
+    "project1": {
+      "name": "YOUR_PROJECT_NAME",
+      "website": "https://yourproject.com",
+      "modules_path": "/opt/odoo/workarea/your-project",
+      "module_prefix": "your_prefix_",
+      "default_category": "Uncategorized"
+    }
+  },
   "branding": {
-    "module_icon": "path/to/your/module_icon.png",
+    "module_icon": "docs/module_icon.png",
     "default_license": "LGPL-3",
-    "default_category": "Uncategorized"
+    "default_version": "17.0.1.0.0"
   },
   "database": {
     "test_prefix": "odoo-test-",
     "default_db": "odoo"
+  },
+  "development": {
+    "auto_reload": true,
+    "log_level": "info",
+    "test_enable": true,
+    "dev_mode": "all"
   }
 }
