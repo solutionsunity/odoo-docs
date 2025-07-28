@@ -1,0 +1,33 @@
+{
+  "developer": {
+    "name": "YOUR_NAME",
+    "email": "YOUR_EMAIL@company.com",
+    "company": "YOUR_COMPANY_NAME",
+    "website": "https://yourcompany.com"
+  },
+  "odoo": {
+    "version": "17.0",
+    "core_path": "/usr/lib/python3/dist-packages/odoo",
+    "config_file": "/etc/odoo/odoo.conf",
+    "user": "odoo"
+  },
+  "workspace": {
+    "root": "/opt/odoo",
+    "workarea": "/opt/odoo/workarea",
+    "addons_paths": {
+      "free": "/opt/addons/17.0",
+      "paid": "/opt/addons/17.0-paid", 
+      "oca": "/opt/addons/17.0-oca",
+      "custom": "/opt/addons/17.0-dx"
+    }
+  },
+  "branding": {
+    "module_icon": "path/to/your/module_icon.png",
+    "default_license": "LGPL-3",
+    "default_category": "Uncategorized"
+  },
+  "database": {
+    "test_prefix": "odoo-test-",
+    "default_db": "odoo"
+  }
+}
