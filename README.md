@@ -1,7 +1,7 @@
 # Odoo Development Documentation
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Odoo](https://img.shields.io/badge/Odoo-17.0-purple.svg)](https://www.odoo.com/)
+[![Odoo](https://img.shields.io/badge/Odoo-17.0+-purple.svg)](https://www.odoo.com/)
 [![AI Agent Ready](https://img.shields.io/badge/AI%20Agent-Ready-brightgreen.svg)](https://github.com/solutionsunity/odoo-docs)
 
 Centralized documentation and development standards for **AI-powered Odoo development**. This repository provides consistent coding standards, guidelines, and AI assistant configurations that can be shared across multiple Odoo projects, designed primarily for AI agents with human developer support.
