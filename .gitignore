@@ -1,6 +1,6 @@
 # Private configurations
 .augment-guidelines
-dev-config.json
+docs/env-reference.json
 module-config.json
 
 # Private workarea (contains private repositories and code)
