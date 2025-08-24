@@ -61,6 +61,20 @@
 - Prefer using nextTick from @odoo/owl instead of setTimeout for deferred operations
 - Fields with ir.model as comodel cannot use ondelete='restrict' mode
 
+## Odoo 18.0 Specifics
+
+- Use <list> views instead of deprecated <tree> views
+- Replace 'attrs' and 'states' attributes with invisible, readonly, etc. with conditions inside them
+- The field period_lock_date in res.company model has been renamed to hard_lock_date
+- Hook functions use 'env' parameter instead of 'cr' and 'registry' parameters
+- Models should override create_multi instead of create to avoid deprecation warnings
+- Custom models with mail thread functionality must implement '_get_thread_with_access' method
+- In OWL templates, use t-props syntax instead of curly braces which cause compilation errors
+- Prefer using nextTick from @odoo/owl instead of setTimeout for deferred operations
+- Fields with ir.model as comodel cannot use ondelete='restrict' mode
+- JavaScript files should use the `.esm.js` extension for ES modules
+- Some fields in res.company model have been removed: account_journal_payment_debit_account_id, account_journal_payment_credit_account_id
+
 ## Invoice-Payment Relations
 
 ### Getting Payments for Invoices
@@ -117,5 +131,23 @@ Examples:
 - `'version': '17.0.1.1.0'` - Minor feature addition
 - `'version': '17.0.1.0.1'` - Bug fix release
 - `'version': '17.0.2.0.0'` - Major feature update with breaking changes
+
+### Version Format for Odoo 18.0
+
+All modules should follow the standard Odoo version format:
+
+```
+'version': '18.0.x.x.x'
+```
+
+Where:
+- `18.0` - Odoo major version
+- `x.x.x` - Module version in semantic versioning format (major.minor.patch)
+
+Examples:
+- `'version': '18.0.1.0.0'` - First release of the module
+- `'version': '18.0.1.1.0'` - Minor feature addition
+- `'version': '18.0.1.0.1'` - Bug fix release
+- `'version': '18.0.2.0.0'` - Major feature update with breaking changes
 
 This format ensures compatibility tracking and proper module management within the Odoo ecosystem.

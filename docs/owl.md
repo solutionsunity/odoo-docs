@@ -1,4 +1,4 @@
-# OWL Component Implementation Guide for Odoo 17
+# OWL Component Implementation Guide for Odoo 17++
 
 This document outlines key findings and best practices for implementing OWL components in Odoo 17, with a specific focus on field widgets and options handling.
 
