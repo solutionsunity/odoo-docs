@@ -119,17 +119,141 @@ def _send_notification(self, notification_type):
 ```
 
 ### Professional Email Layout
-- Use consistent header with company logo
-- Clear, structured body content
-- Professional footer with company information
-- Responsive design for mobile devices
-- Proper styling with inline CSS
+```xml
+<!-- Standard Header -->
+<div style="background-color: #DDDDDD; color: #FFFFFF; text-align: center; padding: 16px;">
+    <img t-attf-src="/web/image/res.company/{{user.company_id.id}}/logo" t-att-alt="user.company_id.name + ' Logo'" style="box-sizing: border-box; vertical-align: middle; max-height: 75px;"/>
+    <h2 t-attf-style="color:{{user.company_id.email_primary_color or '#212529'}};">Template Title</h2>
+</div>
+
+<!-- Body with proper styling -->
+<div style="padding: 16px; font-family: Arial, sans-serif; color: #333333;">
+    <p style="box-sizing:border-box;margin: 0 0 16px 0;">Content here</p>
+
+    <!-- Buttons use secondary color -->
+    <a t-attf-style="background-color:{{user.company_id.email_secondary_color or '#a14686'}};">Action Button</a>
+</div>
+
+<!-- Standard Footer -->
+<div style="background-color: #DDDDDD; color: #1F1F1F; text-align: center; padding: 16px;">
+    <p style="box-sizing:border-box;margin:0;">© <t t-esc="datetime.datetime.now().year"/> <t t-esc="user.company_id.name"/>. All rights reserved.</p>
+</div>
+```
+
+**Email Colors:**
+- `user.company_id.email_primary_color` - Headers, titles, text links
+- `user.company_id.email_secondary_color` - Action buttons, call-to-action elements
+- Always provide fallback colors (`#212529` for primary, `#a14686` for secondary)
+
+### Buttons and Links Standards
+
+#### Action Buttons (Secondary Color)
+Use secondary color for prominent call-to-action buttons:
+```xml
+<!-- Primary action button -->
+<a t-attf-href="{{action_url}}"
+   t-attf-style="border-style:solid;box-sizing:border-box;border-color:{{user.company_id.email_secondary_color or '#a14686'}};border-width:1px;padding:5px 10px;color:#FFFFFF;text-decoration:none;background-color:{{user.company_id.email_secondary_color or '#a14686'}};border-radius:3px">
+    Action Button Text
+</a>
+```
+
+#### Text Links (Primary Color)
+Use primary color for inline text links and table links:
+```xml
+<!-- Inline text link -->
+<a t-attf-href="{{link_url}}"
+   t-attf-style="color: {{user.company_id.email_primary_color or '#875A7B'}}; text-decoration: none;">
+    Link Text
+</a>
+
+<!-- Table action link -->
+<td style="padding: 8px;">
+    <a t-attf-href="{{record_url}}"
+       t-attf-style="color: {{user.company_id.email_primary_color or '#875A7B'}}; text-decoration: none;">
+        View
+    </a>
+</td>
+```
+
+#### Button vs Link Decision Matrix
+| Element Type | Color | Use Case | Example |
+|--------------|-------|----------|---------|
+| **Action Button** | Secondary | Primary actions, CTAs | "Renew Document", "Approve Request" |
+| **Text Link** | Primary | Navigation, secondary actions | "View Details", "Edit Record" |
+| **Table Link** | Primary | Row actions in tables | "View", "Edit", "Download" |
+
+### Navigation URL Construction
+
+#### Base URL Retrieval
+Always use the proper method to get the base URL:
+```xml
+<t t-set="base_url" t-value="env['ir.config_parameter'].sudo().get_param('web.base.url')"/>
+```
+
+#### Record Navigation URLs
+Standard pattern for navigating to specific records:
+```xml
+<!-- Single record form view -->
+<a t-attf-href="{{base_url}}/web#id={{record.id}}&amp;view_type=form&amp;model={{model_name}}">
+
+<!-- List view with domain filter -->
+<a t-attf-href="{{base_url}}/web#model={{model_name}}&amp;view_type=list&amp;domain={{domain_filter}}">
+
+<!-- Specific action with context -->
+<a t-attf-href="{{base_url}}/web#action={{action_id}}&amp;active_id={{record.id}}">
+```
+
+#### URL Construction Examples
+```xml
+<!-- Document record -->
+<t t-set="base_url" t-value="env['ir.config_parameter'].sudo().get_param('web.base.url')"/>
+<a t-attf-href="{{base_url}}/web#id={{object.document_id.id}}&amp;view_type=form&amp;model=su.document">
+    View Document
+</a>
+
+<!-- Partner record -->
+<a t-attf-href="{{base_url}}/web#id={{object.partner_id.id}}&amp;view_type=form&amp;model=res.partner">
+    View Partner
+</a>
+
+<!-- Sale order with specific action -->
+<a t-attf-href="{{base_url}}/web#action=sale.action_orders&amp;active_id={{object.id}}">
+    View Order
+</a>
+```
+
+#### URL Parameters Reference
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `id` | Record ID to display | `id=123` |
+| `model` | Model name | `model=sale.order` |
+| `view_type` | View type to open | `view_type=form` |
+| `action` | Specific action ID | `action=sale.action_orders` |
+| `active_id` | Active record ID for action | `active_id=123` |
+| `domain` | Filter domain for list views | `domain=[('state','=','draft')]` |
 
 ### Template Variables
 - **`object`**: Current record being processed
-- **`user`**: Current user triggering the action
-- **`company`**: Current company record
-- **`ctx`**: Context variables
+- **`user`**: Current user triggering the action (use `user.company_id` for company)
+- **`ctx`**: Context variables passed to template
+- **`datetime`**: Python datetime module
+
+### Template Syntax
+**Field values (Python expressions):**
+```xml
+<field name="subject">{{ object.name }}</field>
+<field name="email_to">{{ ','.join(recipients) }}</field>
+```
+
+**Body content (QWeb):**
+```xml
+<t t-esc="object.name"/>                    <!-- Display value -->
+<t t-if="condition">Content</t>             <!-- Conditional -->
+<t t-foreach="items" t-as="item">           <!-- Loop -->
+<t t-attf-style="color:{{color}};">         <!-- Dynamic attributes -->
+```
+
+**Rule:** Use `{{ }}` in field definitions, use `<t t-*>` in body HTML
 
 ### Error Handling
 ```python
@@ -140,6 +264,178 @@ try:
 except Exception as e:
     _logger.error(f"Failed to send email: {str(e)}")
     return False
+```
+
+### Common Email Patterns
+
+#### Document Notification with Navigation
+```xml
+<!-- Document expiry notification with action button -->
+<t t-set="base_url" t-value="env['ir.config_parameter'].sudo().get_param('web.base.url')"/>
+
+<p>Your document is expiring soon. Please take action:</p>
+
+<!-- Primary action button (secondary color) -->
+<p style="margin: 16px 0;">
+    <a t-attf-href="{{base_url}}/web#id={{object.document_id.id}}&amp;view_type=form&amp;model=su.document"
+       t-attf-style="border-style:solid;border-color:{{user.company_id.email_secondary_color or '#a14686'}};border-width:1px;padding:8px 16px;color:#FFFFFF;text-decoration:none;background-color:{{user.company_id.email_secondary_color or '#a14686'}};border-radius:3px">
+        View Document
+    </a>
+</p>
+
+<!-- Optional external action -->
+<t t-if="object.renewal_url">
+    <p>Or renew online:
+        <a t-attf-href="{{object.renewal_url}}"
+           t-attf-style="color: {{user.company_id.email_primary_color or '#875A7B'}};">
+            Renewal Portal
+        </a>
+    </p>
+</t>
+```
+
+#### Summary Table with Actions
+```xml
+<!-- Summary table with navigation links -->
+<t t-set="base_url" t-value="env['ir.config_parameter'].sudo().get_param('web.base.url')"/>
+
+<table border="1" style="border-collapse: collapse; width: 100%;">
+    <thead>
+        <tr>
+            <th style="padding: 8px;">Document</th>
+            <th style="padding: 8px;">Status</th>
+            <th style="padding: 8px;">Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        <t t-foreach="documents" t-as="doc">
+            <tr>
+                <td style="padding: 8px;"><t t-esc="doc.name"/></td>
+                <td style="padding: 8px;"><t t-esc="doc.state"/></td>
+                <td style="padding: 8px;">
+                    <a t-attf-href="{{base_url}}/web#id={{doc.id}}&amp;view_type=form&amp;model=su.document"
+                       t-attf-style="color: {{user.company_id.email_primary_color or '#875A7B'}}; text-decoration: none;">
+                        View
+                    </a>
+                </td>
+            </tr>
+        </t>
+    </tbody>
+</table>
+```
+
+#### Multi-Action Email
+```xml
+<!-- Email with multiple action types -->
+<t t-set="base_url" t-value="env['ir.config_parameter'].sudo().get_param('web.base.url')"/>
+
+<p>Your request requires attention:</p>
+
+<!-- Primary action (secondary color button) -->
+<p style="margin: 16px 0;">
+    <a t-attf-href="{{base_url}}/web#id={{object.id}}&amp;view_type=form&amp;model=request.model"
+       t-attf-style="background-color:{{user.company_id.email_secondary_color or '#a14686'}};color:#FFFFFF;padding:8px 16px;text-decoration:none;border-radius:3px;display:inline-block;">
+        Review Request
+    </a>
+</p>
+
+<!-- Secondary actions (primary color links) -->
+<p>Additional options:</p>
+<ul>
+    <li>
+        <a t-attf-href="{{base_url}}/web#model=related.model&amp;domain=[('request_id','=',{{object.id}})]"
+           t-attf-style="color: {{user.company_id.email_primary_color or '#875A7B'}};">
+            View Related Records
+        </a>
+    </li>
+    <li>
+        <a t-attf-href="{{base_url}}/web#action=custom.action_reports&amp;active_id={{object.id}}"
+           t-attf-style="color: {{user.company_id.email_primary_color or '#875A7B'}};">
+            Generate Report
+        </a>
+    </li>
+</ul>
+```
+
+### Color Usage Guidelines
+
+#### Do's ✅
+- Use secondary color for primary action buttons
+- Use primary color for text links and navigation
+- Always provide fallback colors
+- Maintain consistent styling across templates
+- Use `t-attf-style` for dynamic color application
+
+#### Don'ts ❌
+- Don't hardcode colors without fallbacks
+- Don't mix color purposes (primary for buttons, secondary for links)
+- Don't use colors that don't contrast well with backgrounds
+- Don't forget to escape URLs with `&amp;` in XML
+
+#### Color Accessibility
+```xml
+<!-- Good: High contrast, proper fallbacks -->
+<a t-attf-style="background-color:{{user.company_id.email_secondary_color or '#a14686'}};color:#FFFFFF;">
+
+<!-- Good: Readable link color -->
+<a t-attf-style="color: {{user.company_id.email_primary_color or '#875A7B'}};">
+
+<!-- Bad: No fallback -->
+<a t-attf-style="color: {{user.company_id.email_primary_color}};">
+
+<!-- Bad: Poor contrast -->
+<a style="color: #CCCCCC; background-color: #FFFFFF;">
+```
+
+### Troubleshooting Navigation URLs
+
+#### Common Issues and Solutions
+
+**Issue: `KeyError: 'web'` in templates**
+```xml
+<!-- ❌ Wrong: web variable not available -->
+<a t-attf-href="{{web.base_url}}/web#id={{object.id}}">
+
+<!-- ✅ Correct: Use env to get base URL -->
+<t t-set="base_url" t-value="env['ir.config_parameter'].sudo().get_param('web.base.url')"/>
+<a t-attf-href="{{base_url}}/web#id={{object.id}}">
+```
+
+**Issue: URLs not working in email**
+```xml
+<!-- ❌ Wrong: Missing proper escaping -->
+<a t-attf-href="{{base_url}}/web#id={{object.id}}&view_type=form&model=su.document">
+
+<!-- ✅ Correct: Proper XML escaping -->
+<a t-attf-href="{{base_url}}/web#id={{object.id}}&amp;view_type=form&amp;model=su.document">
+```
+
+**Issue: Colors not applying**
+```xml
+<!-- ❌ Wrong: Missing t-attf- prefix -->
+<a style="color: {{user.company_id.email_primary_color}};">
+
+<!-- ✅ Correct: Use t-attf-style -->
+<a t-attf-style="color: {{user.company_id.email_primary_color or '#875A7B'}};">
+```
+
+**Issue: Base URL not found**
+```python
+# Check if web.base.url is configured
+base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+if not base_url:
+    # Set default or handle missing configuration
+    base_url = 'http://localhost:8069'
+```
+
+#### Testing Navigation Links
+```python
+# Test URL construction in Python
+def test_navigation_url(self):
+    base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+    record_url = f"{base_url}/web#id={self.id}&view_type=form&model={self._name}"
+    _logger.info(f"Generated URL: {record_url}")
+    return record_url
 ```
 
 ## Notification System Architecture

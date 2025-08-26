@@ -1,5 +1,7 @@
 # Git Commit Standards
 
+**⚠️ PRECAUTION: Never use `git add .`, `git add -A`, or `git add --all`. These commands add all changes at once, which can lead to unintended commits and poor commit hygiene. Always add files selectively by specifying individual files or at most a single module directory (e.g., `git add module_name/`). This ensures you review each change and maintain clean, focused commits.**
+
 ## Commit Message Format
 
 ```
@@ -73,3 +75,34 @@ Include detailed descriptions when:
 - Making architectural changes
 - Fixing complex bugs
 - Changes that affect multiple modules
+
+## Opening GitHub Issues
+
+### Issue Title Format
+
+```
+[odoo_version] module_name: short description
+```
+
+### Examples
+
+```
+[16.0] account: Invoice validation fails with multi-currency
+[17.0] sale: Add support for custom delivery methods
+[15.0] hr_payroll: Payslip calculation error for overtime
+```
+
+### Issue Labels
+
+Use only standard GitHub labels for categorization:
+
+- **bug**: Something isn't working as expected
+- **enhancement**: New feature or improvement request
+- **documentation**: Documentation related issues
+- **question**: General questions or clarifications needed
+- **duplicate**: This issue already exists
+- **wontfix**: Issue that won't be addressed
+- **help wanted**: Extra attention is needed
+- **good first issue**: Good for newcomers
+
+**Important**: Do not create or use custom labels. Stick to the standard GitHub label types to maintain consistency across the repository.

@@ -22,6 +22,44 @@
 - Avoid using 'default_' prefix for field names as it is reserved for Odoo internals
 - Use clear, descriptive names for methods and variables
 
+## Computed Fields with Search
+
+For computed fields that need to be searchable but cannot/should not be stored:
+
+```python
+# Field definition
+is_expiring_soon = fields.Boolean(
+    string='Expiring Soon',
+    compute='_compute_expiry_info',
+    search='_search_is_expiring_soon'  # Enable search without storing
+)
+
+# Search method
+@api.model
+def _search_is_expiring_soon(self, operator, value):
+    """Search method for computed field"""
+    # Get candidates with basic domain
+    candidates = self.search([('basic_field', '=', 'criteria')])
+
+    # Apply computed logic to filter results
+    matching_ids = []
+    for record in candidates:
+        if record.computed_condition:
+            matching_ids.append(record.id)
+
+    return [('id', 'in', matching_ids)]
+```
+
+**Use cases:**
+- Fields depending on current date/time (never store these)
+- Complex calculations without clear dependency triggers
+- Fields that need search capability in XML filters and Python domains
+
+**Benefits:**
+- Always current values (no stale stored data)
+- Searchable in domains and XML filters
+- Follows Odoo standard patterns
+
 ## Error Handling and Validation
 
 - Error messages should be clear and specific about the exact problem encountered
@@ -42,6 +80,29 @@
 - In XML data files, use noupdate="0" for master data to ensure changes are picked up when updating modules
 - Use noupdate="1" for initial values that should not be overwritten on module update
 - Use format_html() with _get_html_link() helper to create clickable record links in chatter messages
+
+### Chatter Implementation
+
+- **Odoo 18.0**: Use the simple `<chatter/>` tag instead of the old `<div class="oe_chatter">` structure
+- **Odoo 17.0 and earlier**: Use the complex div structure with individual field widgets
+
+```xml
+<!-- Odoo 18.0 - Correct -->
+</sheet>
+<chatter/>
+</form>
+
+<!-- Odoo 17.0 and earlier - Legacy -->
+</sheet>
+<div class="oe_chatter">
+    <field name="message_follower_ids" widget="mail_followers"/>
+    <field name="activity_ids" widget="mail_activity"/>
+    <field name="message_ids" widget="mail_thread"/>
+</div>
+</form>
+```
+
+The new `<chatter/>` tag automatically provides all chatter functionality including message followers, activities, message thread, attachments, and email integration.
 
 ## Module Structure and Assets
 
