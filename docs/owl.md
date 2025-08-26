@@ -446,3 +446,288 @@ By following the patterns outlined in this document, you can create robust and r
 - Remember that Odoo 17 has moved away from using attrs in views, and options are now passed directly to the extractProps function
 
 This comprehensive approach ensures that your field widgets work reliably across different scenarios and provide a smooth user experience.
+
+## Static Props Declaration Standards
+
+### Mandatory Props Declaration
+
+**✅ DO**: Always declare static props for every OWL component
+```javascript
+export class MyComponent extends Component {
+    static template = "my_module.MyComponent";
+    static props = {}; // Even if no props are expected
+}
+```
+
+**❌ DON'T**: Create components without static props declaration
+```javascript
+// This will cause validation warnings in dev mode
+export class MyComponent extends Component {
+    static template = "my_module.MyComponent";
+    // Missing static props declaration
+}
+```
+
+### Props Type Validation
+
+**✅ DO**: Use proper type definitions with optional flags
+```javascript
+static props = {
+    // Required props
+    name: String,
+    productId: Number,
+
+    // Optional props
+    class: { type: String, optional: true },
+    imageUrl: { type: [String, Boolean], optional: true }, // Multiple types
+    onClick: { type: Function, optional: true },
+
+    // Complex types
+    data: { type: Object, optional: true },
+
+    // Props that might be undefined
+    customOption: { optional: true },
+};
+```
+
+**❌ DON'T**: Pass props without declaring them
+```javascript
+// Template passes undeclared props
+<MyComponent name="test" undeclaredProp="value" />
+
+// Component only declares name
+static props = {
+    name: String,
+    // Missing undeclaredProp declaration
+};
+```
+
+### Extending Existing Component Props
+
+**✅ DO**: Extend existing component props when adding new functionality
+```javascript
+/** @odoo-module */
+
+import { ExistingComponent } from "@module/path/to/component";
+
+// Extend the static props
+ExistingComponent.props = {
+    ...ExistingComponent.props,
+    newProp: { type: String, optional: true },
+    anotherProp: { type: Number, optional: true },
+};
+```
+
+**❌ DON'T**: Replace or ignore existing props
+```javascript
+// This overwrites existing props - WRONG
+ExistingComponent.props = {
+    newProp: { type: String, optional: true },
+    // Lost all original props!
+};
+```
+
+**❌ DON'T**: Use static keyword inside patch objects
+```javascript
+// This syntax is invalid
+patch(ExistingComponent, {
+    static props: { // ❌ Invalid syntax
+        ...ExistingComponent.props,
+        newProp: String,
+    },
+});
+```
+
+### Default Props Standards
+
+**✅ DO**: Provide sensible defaults for optional props
+```javascript
+static props = {
+    title: String,
+    showIcon: { type: Boolean, optional: true },
+    onClick: { type: Function, optional: true },
+};
+
+static defaultProps = {
+    showIcon: true,
+    onClick: () => {},
+};
+```
+
+**❌ DON'T**: Rely on undefined values in templates
+```javascript
+// Template will break if onClick is undefined
+<button t-on-click="props.onClick">Click me</button>
+
+// Better: provide default or check existence
+<button t-on-click="props.onClick or (() => {})">Click me</button>
+```
+
+### Component Creation Standards
+
+**✅ DO**: Follow the complete component structure
+```javascript
+/** @odoo-module */
+
+import { Component } from "@odoo/owl";
+
+export class MyCustomComponent extends Component {
+    static template = "my_module.MyCustomComponent";
+
+    // Always define static props
+    static props = {
+        title: String,
+        data: { type: Object, optional: true },
+        onSave: { type: Function, optional: true },
+    };
+
+    // Provide defaults for optional props
+    static defaultProps = {
+        onSave: () => {},
+    };
+
+    setup() {
+        super.setup();
+    }
+}
+```
+
+**❌ DON'T**: Create incomplete component definitions
+```javascript
+// Missing props declaration and other standards
+export class MyCustomComponent extends Component {
+    static template = "my_module.MyCustomComponent";
+    // Missing static props, defaultProps, etc.
+}
+```
+
+### Props Documentation Standards
+
+**✅ DO**: Document complex or custom props
+```javascript
+static props = {
+    // Standard props
+    title: String,
+
+    // Custom business logic props - document purpose
+    stockInfo: { type: Object, optional: true }, // { qty_available, virtual_available }
+    displayMode: { type: String, optional: true }, // 'grid' | 'list' | 'card'
+
+    // Callback functions - document expected signature
+    onProductSelect: { type: Function, optional: true }, // (productId: number) => void
+};
+```
+
+**❌ DON'T**: Leave complex props undocumented
+```javascript
+static props = {
+    title: String,
+    complexData: { type: Object, optional: true }, // What structure? What purpose?
+    callback: { type: Function, optional: true }, // What parameters? What return?
+};
+```
+
+### Props Validation Best Practices
+
+**✅ DO**: Use specific type validation
+```javascript
+static props = {
+    // Specific types
+    count: Number,
+    isVisible: Boolean,
+    items: Array,
+    config: Object,
+
+    // Multiple allowed types
+    value: { type: [String, Number], optional: true },
+
+    // Optional with proper typing
+    callback: { type: Function, optional: true },
+};
+```
+
+**❌ DON'T**: Use loose or missing type validation
+```javascript
+static props = {
+    // Too loose - any type accepted
+    data: { optional: true },
+
+    // Missing optional flag for non-required props
+    callback: Function, // Will be required!
+};
+```
+
+## OWL Component Standards Summary
+
+### Essential Requirements (Must Do)
+
+1. **Static Props Declaration**: Every OWL component MUST have `static props` declared
+2. **Type Validation**: Use proper type definitions for all props
+3. **Optional Flags**: Mark non-required props as `optional: true`
+4. **Default Props**: Provide `static defaultProps` for optional props with sensible defaults
+5. **Props Extension**: When extending existing components, spread original props first
+
+### Development Standards (Should Do)
+
+1. **Documentation**: Comment complex or business-specific props
+2. **Specific Types**: Use specific types (String, Number, Boolean) over loose validation
+3. **Multiple Types**: Use array notation for props accepting multiple types
+4. **Function Signatures**: Document expected parameters and return values for function props
+5. **Consistent Naming**: Follow consistent naming conventions for similar props across components
+
+### Common Pitfalls (Don't Do)
+
+1. **Missing Props**: Never create components without `static props` declaration
+2. **Overwriting Props**: Don't replace existing props when extending components
+3. **Invalid Syntax**: Don't use `static` keyword inside patch objects
+4. **Loose Typing**: Avoid `{ optional: true }` without type specification unless necessary
+5. **Undocumented Complexity**: Don't leave complex props without documentation
+
+### Quick Reference
+
+```javascript
+// ✅ Complete OWL Component Standard
+export class MyComponent extends Component {
+    static template = "module.MyComponent";
+
+    static props = {
+        // Required props
+        title: String,
+
+        // Optional props with types
+        isVisible: { type: Boolean, optional: true },
+        data: { type: Object, optional: true },
+        onClick: { type: Function, optional: true },
+
+        // Multiple types
+        value: { type: [String, Number], optional: true },
+    };
+
+    static defaultProps = {
+        isVisible: true,
+        onClick: () => {},
+    };
+
+    setup() {
+        super.setup();
+    }
+}
+
+// ✅ Extending Existing Component Props
+ExistingComponent.props = {
+    ...ExistingComponent.props,
+    newProp: { type: String, optional: true },
+};
+```
+
+**Key Takeaways:**
+- Always use `onWillUpdateProps` for widgets that maintain internal state
+- Use `useEffect` for reactive programming and monitoring related fields
+- Be careful with async operations and always return `undefined` from useEffect when not using cleanup
+- Distinguish between actual field changes and save operations to prevent unwanted field clearing
+- **Always declare `static props` for all OWL components - no exceptions**
+- **When extending components, spread existing props first, then add new ones**
+- **Use proper type validation and optional flags for better development experience**
+- Remember that Odoo 17 has moved away from using attrs in views, and options are now passed directly to the extractProps function
+
+This comprehensive approach ensures that your field widgets and OWL components work reliably across different scenarios, pass validation checks, and provide a smooth user experience.
