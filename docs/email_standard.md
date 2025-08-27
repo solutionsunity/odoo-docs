@@ -103,7 +103,11 @@ def _send_notification(self, notification_type):
 
 ## Email Template Best Practices
 
-### Template Structure
+### Template Structure and Syntax
+
+**IMPORTANT: Email templates use different syntax for different parts:**
+
+#### Template Attributes (Use Jinja2 Syntax `{{ }}`)
 ```xml
 <record id="email_template_name" model="mail.template">
     <field name="name">Template: Purpose Description</field>
@@ -112,11 +116,56 @@ def _send_notification(self, notification_type):
     <field name="email_from">{{ user.email_formatted }}</field>
     <field name="email_to">{{ object.email }}</field>
     <field name="body_html" type="html">
-        <!-- Professional template content -->
+        <!-- HTML body content uses QWeb syntax -->
     </field>
     <field name="auto_delete" eval="True"/>
 </record>
 ```
+
+#### HTML Body Content (Use QWeb Syntax `<t t-out=""/>`)
+```xml
+<field name="body_html" type="html">
+    <div style="font-family: Arial, sans-serif;">
+        <p>Dear <t t-out="object.partner_id.name or 'Customer'"/>,</p>
+
+        <p>Your order details:</p>
+        <table>
+            <tr>
+                <td>Order Number:</td>
+                <td><t t-out="object.name or 'N/A'"/></td>
+            </tr>
+            <tr>
+                <td>Date:</td>
+                <td><t t-out="format_date(object.date_order) if object.date_order else 'Not specified'"/></td>
+            </tr>
+            <tr>
+                <td>Total:</td>
+                <td><t t-out="'%.2f' % (object.amount_total or 0)"/></td>
+            </tr>
+        </table>
+
+        <!-- Dynamic URLs use t-attf-href -->
+        <div style="text-align: center;">
+            <a t-attf-href="/my/orders/{{ object.id }}"
+               style="background-color: #875A7B; color: white; padding: 10px 20px; text-decoration: none;">
+                View Order
+            </a>
+        </div>
+
+        <p>Best regards,<br/>
+        <t t-out="user.name or 'Support Team'"/></p>
+    </div>
+</field>
+```
+
+### Syntax Rules Summary
+
+| Context | Syntax | Example | Use Case |
+|---------|--------|---------|----------|
+| **Template Attributes** | Jinja2 `{{ }}` | `{{ object.email }}` | subject, email_to, email_from, etc. |
+| **HTML Body Content** | QWeb `<t t-out=""/>` | `<t t-out="object.name"/>` | Display values in HTML |
+| **Dynamic URLs** | QWeb `t-attf-href` | `t-attf-href="/order/{{ object.id }}"` | Links with variables |
+| **Conditional Content** | QWeb `t-if` | `<div t-if="object.state == 'done'">` | Show/hide content |
 
 ### Professional Email Layout
 ```xml
@@ -232,7 +281,9 @@ Standard pattern for navigating to specific records:
 | `active_id` | Active record ID for action | `active_id=123` |
 | `domain` | Filter domain for list views | `domain=[('state','=','draft')]` |
 
-### Template Variables
+### Template Variables and Functions
+
+#### Available Variables
 - **`object`**: Current record being processed
 - **`user`**: Current user triggering the action (use `user.company_id` for company)
 - **`ctx`**: Context variables passed to template
@@ -254,6 +305,76 @@ Standard pattern for navigating to specific records:
 ```
 
 **Rule:** Use `{{ }}` in field definitions, use `<t t-*>` in body HTML
+
+#### Available Functions
+- **`format_date(date_field)`**: Format date fields (e.g., `format_date(object.date_order)`)
+- **`format_datetime(datetime_field)`**: Format datetime fields with timezone
+- **`format_datetime(datetime_field, tz=user.tz)`**: Format with specific timezone
+
+#### Common Patterns
+
+**Safe Field Access with Fallbacks:**
+```xml
+<!-- QWeb syntax in body_html -->
+<t t-out="object.partner_id.name or 'Customer'"/>
+<t t-out="object.amount_total or 0"/>
+<t t-out="format_date(object.date_order) if object.date_order else 'Not specified'"/>
+
+<!-- Jinja2 syntax in attributes -->
+<field name="email_to">{{ object.partner_id.email or '' }}</field>
+```
+
+**Numeric Formatting:**
+```xml
+<!-- Currency -->
+<t t-out="'%.2f' % (object.amount_total or 0)"/>
+
+<!-- Percentage -->
+<t t-out="'%.1f' % (object.score or 0)"/>%
+```
+
+**Conditional Content:**
+```xml
+<div t-if="object.state == 'confirmed'">
+    <p>Your order has been confirmed!</p>
+</div>
+
+<div t-elif="object.state == 'cancelled'">
+    <p>Your order has been cancelled.</p>
+</div>
+
+<div t-else="">
+    <p>Your order is being processed.</p>
+</div>
+```
+
+### Common Mistakes to Avoid
+
+❌ **Wrong: Using Jinja2 syntax in HTML body**
+```xml
+<field name="body_html" type="html">
+    <p>Dear {{ object.partner_id.name }},</p>  <!-- WRONG -->
+    <p>Total: {{ object.amount_total }}</p>     <!-- WRONG -->
+</field>
+```
+
+✅ **Correct: Using QWeb syntax in HTML body**
+```xml
+<field name="body_html" type="html">
+    <p>Dear <t t-out="object.partner_id.name or 'Customer'"/>,</p>  <!-- CORRECT -->
+    <p>Total: <t t-out="object.amount_total or 0"/></p>            <!-- CORRECT -->
+</field>
+```
+
+❌ **Wrong: Using QWeb syntax in attributes**
+```xml
+<field name="email_to"><t t-out="object.email"/></field>  <!-- WRONG -->
+```
+
+✅ **Correct: Using Jinja2 syntax in attributes**
+```xml
+<field name="email_to">{{ object.email or '' }}</field>  <!-- CORRECT -->
+```
 
 ### Error Handling
 ```python
