@@ -81,15 +81,15 @@ Include detailed descriptions when:
 ### Issue Title Format
 
 ```
-[odoo_version] module_name: short description
+[module_name] short description
 ```
 
 ### Examples
 
 ```
-[16.0] account: Invoice validation fails with multi-currency
-[17.0] sale: Add support for custom delivery methods
-[15.0] hr_payroll: Payslip calculation error for overtime
+[account] Invoice validation fails with multi-currency
+[sale] Add support for custom delivery methods
+[hr_payroll] Payslip calculation error for overtime
 ```
 
 ### Issue Labels
