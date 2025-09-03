@@ -318,3 +318,104 @@ def _show_report(self, model, report_type, report_ref, download=False):
 ```
 
 This pattern ensures your API-generated PDFs match the portal UI exactly, preventing formatting issues, content overlap, and inconsistent layouts.
+
+### Custom Paper Formats for Custom Reports
+
+For **custom reports only** (not standard Odoo reports), you may define custom paper formats when specific formatting requirements are needed:
+
+```xml
+<!-- Custom paper format definition -->
+<record id="paperformat_custom_report" model="report.paperformat">
+    <field name="name">Custom Report Format</field>
+    <field name="default" eval="False"/>
+    <field name="format">A4</field>
+    <field name="page_height">0</field>
+    <field name="page_width">0</field>
+    <field name="orientation">Portrait</field>
+    <field name="margin_top">35</field>
+    <field name="margin_bottom">20</field>
+    <field name="margin_left">10</field>
+    <field name="margin_right">10</field>
+    <field name="header_line" eval="False"/>
+    <field name="header_spacing">20</field>
+    <field name="dpi">90</field>
+</record>
+
+<!-- Custom report with paper format -->
+<record id="action_custom_report" model="ir.actions.report">
+    <field name="name">Custom Report</field>
+    <field name="model">custom.model</field>
+    <field name="report_type">qweb-pdf</field>
+    <field name="report_name">module.custom_report_template</field>
+    <field name="report_file">module.custom_report_template</field>
+    <field name="paperformat_id" ref="paperformat_custom_report"/>
+    <field name="binding_model_id" ref="model_custom_model"/>
+    <field name="binding_type">report</field>
+</record>
+```
+
+#### When to Use Custom Paper Formats
+
+✅ **Acceptable for custom reports:**
+- Specialized business documents (certificates, labels, forms)
+- Reports with unique layout requirements
+- Integration with external systems requiring specific formats
+- Custom modules with non-standard document types
+
+❌ **Never modify standard reports:**
+- Sale orders, invoices, purchase orders
+- Standard Odoo business documents
+- Reports that users expect to follow company settings
+
+#### Custom Paper Format Guidelines
+
+1. **Always set `default="False"`** - Never make custom formats the system default
+2. **Use descriptive names** - Include module/purpose in the format name
+3. **Test thoroughly** - Verify formatting across different content lengths
+4. **Document requirements** - Explain why custom format is needed
+5. **Consider company settings** - Allow companies to override if appropriate
+
+#### Advanced Custom Parameters
+
+For complex formatting needs, you can use wkhtmltopdf parameters:
+
+```xml
+<!-- Paper format with custom wkhtmltopdf parameters -->
+<record id="paperformat_advanced_custom" model="report.paperformat">
+    <field name="name">Advanced Custom Format</field>
+    <field name="format">custom</field>
+    <field name="page_height">297</field>
+    <field name="page_width">210</field>
+    <field name="margin_top">12</field>
+    <field name="margin_bottom">8</field>
+    <field name="margin_left">5</field>
+    <field name="margin_right">5</field>
+    <field name="dpi">110</field>
+    <!-- Custom parameters for special requirements -->
+    <field name="custom_params" eval="[
+        (0, 0, {'name': '--disable-smart-shrinking'}),
+        (0, 0, {'name': '--print-media-type'}),
+    ]"/>
+</record>
+```
+
+**Note**: Custom parameters require the `report_wkhtmltopdf_param` module.
+
+#### Programmatic Usage with Custom Formats
+
+When using custom reports programmatically, still follow the portal pattern but the custom paperformat will be automatically applied:
+
+```python
+# Custom report will use its assigned paperformat automatically
+ReportAction = request.env['ir.actions.report'].sudo()
+if hasattr(record, 'company_id'):
+    ReportAction = ReportAction.with_company(record.company_id)
+
+pdf_content, _ = ReportAction._render_qweb_pdf(
+    'module.action_custom_report',  # Custom report with paperformat
+    [record.id],
+    data={'report_type': 'pdf'}
+)
+```
+
+The custom paperformat defined in the report XML will be used automatically, while still maintaining proper company context for other settings.
