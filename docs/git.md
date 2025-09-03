@@ -2,6 +2,13 @@
 
 **⚠️ PRECAUTION: Never use `git add .`, `git add -A`, or `git add --all`. These commands add all changes at once, which can lead to unintended commits and poor commit hygiene. Always add files selectively by specifying individual files or at most a single module directory (e.g., `git add module_name/`). This ensures you review each change and maintain clean, focused commits.**
 
+## Before Commit
+Ensure to follow these steps before a commit:
+1. Check if only necessary files are added, avoid staging all files in repository.
+2. Check if module version need to be updated (major, minor, patch)
+3. Check if CHANGELOG.md exit, and update it if necessary
+4. Check if README.md exists, and update it if necessary
+
 ## Commit Message Format
 
 ```

@@ -1,6 +1,8 @@
-# Odoo Frontend Development Guide
+# Odoo Portal & Website Frontend Development Guide
 
 This guide covers frontend development patterns in Odoo, focusing on portal extensions, form creation, validation, and adding new portal areas. All examples follow Odoo's standard patterns found in core modules.
+
+**Scope**: This document covers portal development, form validation, and general website frontend patterns. For website snippet development, see `docs/snippet_javascript_standards.md`.
 
 ## Table of Contents
 
@@ -19,11 +21,13 @@ This guide covers frontend development patterns in Odoo, focusing on portal exte
 13. [Portal Translation Issues with Loops](#portal-translation-issues-with-loops)
 14. [Odoo Standard: Controller vs Record Rules Architecture](#odoo-standard-controller-vs-record-rules-architecture)
 
-## ⚠️ **CRITICAL: JavaScript Implementation Standards**
+## ⚠️ **CRITICAL: Portal JavaScript Implementation Standards**
 
 ### **NO INLINE JAVASCRIPT ALLOWED**
 
 **Rule**: All JavaScript functionality MUST be implemented in external `.js` files. Inline JavaScript in templates is strictly prohibited.
+
+**Note**: This section covers portal and general website JavaScript. For website snippet JavaScript patterns, see `docs/snippet_javascript_standards.md`.
 
 **❌ WRONG - Inline JavaScript:**
 ```xml
