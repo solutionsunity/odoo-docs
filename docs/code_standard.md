@@ -212,3 +212,109 @@ Examples:
 - `'version': '18.0.2.0.0'` - Major feature update with breaking changes
 
 This format ensures compatibility tracking and proper module management within the Odoo ecosystem.
+
+## Report Generation and PDF Rendering
+
+### Portal-Style Report Generation
+
+When generating PDF reports programmatically (e.g., in controllers or API endpoints), always follow Odoo's portal pattern for consistent formatting and proper company context:
+
+```python
+# Correct approach - matches portal behavior
+ReportAction = request.env['ir.actions.report'].sudo()
+
+# CRITICAL: Set company context for proper formatting
+if hasattr(record, 'company_id'):
+    ReportAction = ReportAction.with_company(record.company_id)
+
+# Use simple data parameter like portal does
+pdf_content, _ = ReportAction._render_qweb_pdf(
+    'module.report_action_name',
+    [record.id],
+    data={'report_type': 'pdf'}
+)
+```
+
+### Key Principles
+
+1. **Company Context is Critical**: Always use `.with_company(record.company_id)` to ensure:
+   - Proper paper format settings
+   - Company-specific margins and layout
+   - Correct CSS/styling rules
+   - Consistent formatting with UI portal
+
+2. **Simple Data Parameter**: Use `data={'report_type': 'pdf'}` instead of complex parameters
+   - Avoid custom paperformat assignments
+   - Don't override wkhtmltopdf parameters unless absolutely necessary
+   - Let the company's report configuration handle formatting
+
+3. **Report Reference Validation**:
+   - Use correct report XML IDs (e.g., `'sale.action_report_saleorder'`)
+   - Check if modules like `sale_pdf_quote_builder` modify standard reports
+   - Verify report exists before calling `_render_qweb_pdf`
+
+### Common Pitfalls to Avoid
+
+❌ **Don't do this:**
+```python
+# Wrong - missing company context
+pdf_content = request.env['ir.actions.report']._render_qweb_pdf(
+    'sale.action_report_saleorder', [order_id]
+)
+
+# Wrong - complex data parameters
+data = {
+    'paperformat_id': some_format.id,
+    'disable_smart_shrinking': True,
+    'custom_margins': {...}
+}
+```
+
+✅ **Do this instead:**
+```python
+# Correct - follows portal pattern
+ReportAction = request.env['ir.actions.report'].sudo()
+if hasattr(order, 'company_id'):
+    ReportAction = ReportAction.with_company(order.company_id)
+
+pdf_content, _ = ReportAction._render_qweb_pdf(
+    'sale.action_report_saleorder',
+    [order.id],
+    data={'report_type': 'pdf'}
+)
+```
+
+### Report Module Interactions
+
+When working with report-modifying modules (e.g., `sale_pdf_quote_builder`):
+
+1. **Check module modifications**: Some modules hijack standard reports and create new "clean" versions
+2. **Use appropriate report reference**:
+   - `sale.action_report_saleorder` might be modified to include prefix/suffix pages
+   - `sale_pdf_quote_builder.action_report_saleorder_raw` might be the clean version
+3. **Test both UI and API**: Ensure API generates identical output to portal UI
+
+### Reference Implementation
+
+Based on Odoo's portal controller (`/usr/lib/python3/dist-packages/odoo/addons/portal/controllers/portal.py`):
+
+```python
+def _show_report(self, model, report_type, report_ref, download=False):
+    ReportAction = request.env['ir.actions.report'].sudo()
+
+    if hasattr(model, 'company_id'):
+        if len(model.company_id) > 1:
+            raise UserError(_('Multi company reports are not supported.'))
+        ReportAction = ReportAction.with_company(model.company_id)
+
+    method_name = '_render_qweb_%s' % (report_type)
+    report = getattr(ReportAction, method_name)(
+        report_ref,
+        list(model.ids),
+        data={'report_type': report_type}
+    )[0]
+
+    return request.make_response(report, headers=headers)
+```
+
+This pattern ensures your API-generated PDFs match the portal UI exactly, preventing formatting issues, content overlap, and inconsistent layouts.
