@@ -1,8 +1,79 @@
-# OWL Component Implementation Guide for Odoo 17++
+# OWL Component Implementation Guide for Odoo 15+
 
-This document outlines key findings and best practices for implementing OWL components in Odoo 17, with a specific focus on field widgets and options handling.
+This document outlines key findings and best practices for implementing OWL components in Odoo 15+, covering both legacy JavaScript patterns (for extending existing code) and modern OWL implementations (for new components).
 
-## Field Widget Implementation
+## Odoo 15 OWL Support Overview
+
+**Important**: Odoo 15 supports new OWL framework, but its internals are not fully migrated. This means:
+
+- **New components**: Use clean, modern OWL patterns
+- **Extending existing code**: Use legacy JavaScript patterns with traditional inheritance
+- **Field widgets**: Hybrid approach depending on whether extending existing widgets or creating new ones
+
+## Odoo 15 Legacy JavaScript Patterns (Extending Existing Code)
+
+### Traditional Field Widget Implementation
+
+When extending existing Odoo 15 field widgets, use traditional JavaScript patterns:
+
+```javascript
+odoo.define('module_name.field_widget', function (require) {
+    "use strict";
+
+    var BasicFields = require('web.basic_fields');
+    var field_registry = require('web.field_registry');
+    var core = require('web.core');
+    var QWeb = core.qweb;
+
+    var MyFieldWidget = BasicFields.FieldChar.extend({
+        className: 'o_field_my_widget',
+
+        // Widget initialization
+        init: function (parent, name, record, options) {
+            this._super.apply(this, arguments);
+            // Access options from this.nodeOptions
+            this.customOption1 = this.nodeOptions.customOption1 || 'default';
+            this.customOption2 = this.nodeOptions.customOption2 || false;
+        },
+
+        // Render the widget in edit mode
+        _renderEdit: function () {
+            var def = this._super.apply(this, arguments);
+            // Custom rendering logic here
+            return def;
+        },
+
+        // Render the widget in readonly mode
+        _renderReadonly: function () {
+            this.$el.html(this._formatValue(this.value));
+        },
+
+        // Handle value changes
+        _setValue: function (value, options) {
+            // Custom value handling logic
+            return this._super(value, options);
+        },
+    });
+
+    // Register the widget
+    field_registry.add('my_field_widget', MyFieldWidget);
+
+    return MyFieldWidget;
+});
+```
+
+### Legacy Asset Management (Odoo 15)
+
+```xml
+<!-- In views/assets.xml -->
+<template id="assets_backend" inherit_id="web.assets_backend">
+    <xpath expr="." position="inside">
+        <script type="text/javascript" src="/module_name/static/src/js/field_widget.js"/>
+    </xpath>
+</template>
+```
+
+## Modern OWL Implementation (New Components - Odoo 15+)
 
 ### Component Structure
 
@@ -731,3 +802,72 @@ ExistingComponent.props = {
 - Remember that Odoo 17 has moved away from using attrs in views, and options are now passed directly to the extractProps function
 
 This comprehensive approach ensures that your field widgets and OWL components work reliably across different scenarios, pass validation checks, and provide a smooth user experience.
+
+## Odoo 15 Decision Guide: Legacy vs Modern OWL
+
+### When to Use Legacy JavaScript Patterns (Odoo 15)
+
+✅ **Use Legacy Patterns When:**
+- Extending existing Odoo field widgets (FieldChar, FieldMany2one, etc.)
+- Modifying core Odoo components that use traditional inheritance
+- Working with existing JavaScript modules that use `odoo.define()`
+- Need compatibility with older custom modules
+- Extending web.basic_fields classes
+
+**Example Scenarios:**
+- Custom field widget extending FieldChar
+- Modifying existing form widgets
+- Adding functionality to existing views
+
+### When to Use Modern OWL (Odoo 15)
+
+✅ **Use Modern OWL When:**
+- Creating completely new components from scratch
+- Building standalone widgets not extending existing ones
+- Implementing new business logic components
+- Creating reusable UI components
+- Building dashboard widgets or custom views
+
+**Example Scenarios:**
+- New dashboard components
+- Custom standalone widgets
+- New view types
+- Independent UI components
+
+### Hybrid Approach Example (Odoo 15)
+
+Sometimes you need both approaches in the same module:
+
+```javascript
+// Legacy pattern for extending existing field widget
+odoo.define('module.legacy_field', function (require) {
+    var BasicFields = require('web.basic_fields');
+    var field_registry = require('web.field_registry');
+
+    var CustomField = BasicFields.FieldChar.extend({
+        // Traditional extension
+    });
+
+    field_registry.add('custom_field', CustomField);
+});
+
+// Modern OWL for new component
+import { Component } from "@odoo/owl";
+import { registry } from "@web/core/registry";
+
+class NewDashboardWidget extends Component {
+    // Modern OWL implementation
+}
+
+registry.category("dashboard_widgets").add("new_widget", NewDashboardWidget);
+```
+
+### Migration Strategy (15→17+)
+
+When migrating from Odoo 15 to 17+:
+
+1. **Legacy JavaScript → Modern OWL**: Rewrite using modern patterns
+2. **Modern OWL**: Usually works with minimal changes
+3. **Hybrid modules**: Gradually migrate legacy parts to modern OWL
+
+This guide should be updated as new patterns and best practices are discovered during OWL component development in Odoo 15+.

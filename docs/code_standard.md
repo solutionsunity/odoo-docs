@@ -83,16 +83,12 @@ def _search_is_expiring_soon(self, operator, value):
 
 ### Chatter Implementation
 
+- **Odoo 15.0**: Use the traditional `<div class="oe_chatter">` structure with individual field widgets
+- **Odoo 17.0**: Use the complex div structure with individual field widgets
 - **Odoo 18.0**: Use the simple `<chatter/>` tag instead of the old `<div class="oe_chatter">` structure
-- **Odoo 17.0 and earlier**: Use the complex div structure with individual field widgets
 
 ```xml
-<!-- Odoo 18.0 - Correct -->
-</sheet>
-<chatter/>
-</form>
-
-<!-- Odoo 17.0 and earlier - Legacy -->
+<!-- Odoo 15.0 and 17.0 - Traditional Structure -->
 </sheet>
 <div class="oe_chatter">
     <field name="message_follower_ids" widget="mail_followers"/>
@@ -100,9 +96,14 @@ def _search_is_expiring_soon(self, operator, value):
     <field name="message_ids" widget="mail_thread"/>
 </div>
 </form>
+
+<!-- Odoo 18.0 - Simplified -->
+</sheet>
+<chatter/>
+</form>
 ```
 
-The new `<chatter/>` tag automatically provides all chatter functionality including message followers, activities, message thread, attachments, and email integration.
+The new `<chatter/>` tag (Odoo 18.0+) automatically provides all chatter functionality including message followers, activities, message thread, attachments, and email integration.
 
 ## Module Structure and Assets
 
@@ -110,6 +111,19 @@ The new `<chatter/>` tag automatically provides all chatter functionality includ
 - If no specific icon is requested, use the standard icon from `docs/module_icon.png`
 - Create the `static/description/` directory structure for each new module
 - Module icons help with visual identification in the Odoo Apps interface
+
+## Odoo 15.0 Specifics
+
+- Use 'attrs' attribute for conditional field visibility, readonly, and required states
+- Field widget registration uses field_registry.add() instead of registry.category()
+- OWL components use older syntax with different import patterns
+- Models should override create() method (create_multi is for Odoo 16+)
+- Use traditional JavaScript patterns for field widgets extending basic_fields
+- In XML views, use invisible="1" or attrs="{'invisible': [...]}" for conditional visibility
+- Use traditional jQuery and widget patterns for custom field implementations
+- Asset management uses older patterns without the new 'assets' key structure
+- QWeb templates are loaded differently in Odoo 15
+- Field widgets extend from web.basic_fields classes with traditional inheritance
 
 ## Odoo 17.0 Specifics
 
@@ -174,6 +188,24 @@ The new `<chatter/>` tag automatically provides all chatter functionality includ
 - When implementing Odoo features, check the local codebase for valid examples to follow for consistency
 
 ## Module Versioning
+
+### Version Format for Odoo 15.0
+
+All modules should follow the standard Odoo version format:
+
+```
+'version': '15.0.x.x.x'
+```
+
+Where:
+- `15.0` - Odoo major version
+- `x.x.x` - Module version in semantic versioning format (major.minor.patch)
+
+Examples:
+- `'version': '15.0.1.0.0'` - First release of the module
+- `'version': '15.0.1.1.0'` - Minor feature addition
+- `'version': '15.0.1.0.1'` - Bug fix release
+- `'version': '15.0.2.0.0'` - Major feature update with breaking changes
 
 ### Version Format for Odoo 17.0
 

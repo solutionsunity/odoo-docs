@@ -1,10 +1,10 @@
 # Odoo Development Documentation
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Odoo](https://img.shields.io/badge/Odoo-17.0+-purple.svg)](https://www.odoo.com/)
+[![Odoo](https://img.shields.io/badge/Odoo-15+-purple.svg)](https://www.odoo.com/)
 [![AI Agent Ready](https://img.shields.io/badge/AI%20Agent-Ready-brightgreen.svg)](https://github.com/solutionsunity/odoo-docs)
 
-Centralized documentation and development standards for **AI-powered Odoo development**. This repository provides consistent coding standards, guidelines, and AI assistant configurations that can be shared across multiple Odoo projects, designed primarily for AI agents with human developer support.
+Centralized documentation and development standards for **AI-powered Odoo development**. This repository provides consistent coding standards, guidelines, and AI assistant configurations that can be shared across multiple Odoo projects (15+), designed primarily for AI agents with human developer support.
 
 ## ✨ Features
 
@@ -83,7 +83,7 @@ odoo-docs/
 | Document | Description | Purpose |
 |----------|-------------|---------|
 | **[Git Standards](docs/git.md)** | Commit message format and workflow | Consistent git history |
-| **[Code Standards](docs/code_standard.md)** | Backend development guidelines | Clean, maintainable code |
+| **[Code Standards](docs/code_standard.md)** | Backend development guidelines (15+) | Clean, maintainable code |
 | **[Frontend Standards](docs/frontend.md)** | Portal and frontend development | Consistent UI/UX |
 | **[OWL Guidelines](docs/owl.md)** | OWL component development | Modern JS framework |
 | **[Migration Guide](docs/migration_guideline.md)** | Version migration procedures | Smooth upgrades |

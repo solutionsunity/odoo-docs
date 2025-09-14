@@ -1,6 +1,14 @@
-# Odoo 17.0 Migration Guidelines
+# Migration Guidelines for Odoo 15+
 
-This document provides a comprehensive guide for migrating modules to Odoo 17.0, based on our experience migrating custom and OCA modules. It highlights key changes, common challenges, and best practices to follow during the migration process.
+This document provides guidelines for migrating modules and code between Odoo versions, including forward migration (15→17+) and **backporting/downgrading** (17+→15) scenarios.
+
+## Forward Migration (15→17+)
+
+This section covers upgrading modules from Odoo 15 to newer versions (17+).
+
+## Backporting/Downgrading (17+→15)
+
+This section covers downgrading modern Odoo code (17+) to work with Odoo 15 - useful for maintaining compatibility or supporting legacy installations.
 
 ## Key Changes in Odoo 17.0
 
@@ -425,3 +433,100 @@ Migrating modules from Odoo 17.0 to 18.0 requires attention to detail and a syst
 By following these guidelines and best practices, you can ensure a smooth migration process with minimal disruption to functionality.
 
 Remember to always test thoroughly after migration and address any issues before deploying to production.
+
+## Backporting Guidelines (17+→15)
+
+### Overview
+
+When backporting modern Odoo code (17+) to Odoo 15, you need to reverse many of the modernizations and use legacy patterns.
+
+### Key Backporting Changes
+
+#### 1. View Syntax Backporting
+
+**Modern (17+) → Legacy (15)**
+
+```xml
+<!-- Odoo 17+ (Modern) -->
+<field name="field_name"
+       invisible="state != 'draft'"
+       readonly="state == 'done'"/>
+
+<!-- Odoo 15 (Legacy) -->
+<field name="field_name"
+       attrs="{'invisible': [('state', '!=', 'draft')], 'readonly': [('state', '=', 'done')]}"/>
+```
+
+#### 2. Model Method Backporting
+
+```python
+# Odoo 17+ (Modern)
+@api.model_create_multi
+def create(self, vals_list):
+    return super().create(vals_list)
+
+# Odoo 15 (Legacy)
+@api.model
+def create(self, vals):
+    return super().create(vals)
+```
+
+#### 3. Field Widget Registration Backporting
+
+```javascript
+// Odoo 17+ (Modern)
+import { registry } from "@web/core/registry";
+registry.category("fields").add("my_widget", MyWidget);
+
+// Odoo 15 (Legacy)
+var field_registry = require('web.field_registry');
+field_registry.add('my_widget', MyWidget);
+```
+
+#### 4. Asset Management Backporting
+
+```python
+# Odoo 17+ (Modern manifest)
+'assets': {
+    'web.assets_backend': [
+        'module/static/src/js/widget.js',
+    ],
+}
+
+# Odoo 15 (Legacy manifest)
+'qweb': [
+    'static/src/xml/templates.xml',
+],
+'data': [
+    'views/assets.xml',  # Separate asset file
+]
+```
+
+### Backporting Checklist
+
+#### Pre-Backporting
+- [ ] Identify modern syntax usage (attrs replacement, new OWL, etc.)
+- [ ] Check for 17+ specific field names and methods
+- [ ] Review asset bundle structure
+- [ ] Plan legacy equivalent implementations
+
+#### During Backporting
+- [ ] Convert modern view syntax to attrs/states
+- [ ] Replace create_multi with create
+- [ ] Update JavaScript widget patterns
+- [ ] Migrate asset definitions to legacy format
+- [ ] Test with Odoo 15 environment
+
+#### Post-Backporting
+- [ ] Verify all functionality works in Odoo 15
+- [ ] Check for JavaScript console errors
+- [ ] Test view rendering and field behavior
+- [ ] Validate database operations
+
+### Common Backporting Pitfalls
+
+1. **Forgetting attrs syntax** - Modern invisible/readonly must become attrs
+2. **Asset bundle issues** - New asset structure doesn't work in 15
+3. **Method signature changes** - create_multi, hook functions, etc.
+4. **Field name changes** - Some fields renamed between versions
+5. **OWL component patterns** - Need to use legacy or hybrid approaches
