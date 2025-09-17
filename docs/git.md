@@ -6,7 +6,7 @@
 Ensure to follow these steps before a commit:
 1. Check if only necessary files are added, avoid staging all files in repository.
 2. Check if module version need to be updated (major, minor, patch)
-3. Check if CHANGELOG.md exit, and update it if necessary
+3. Check if CHANGELOG.md exit, and update it if necessary (**Ensure date is correct**)
 4. Check if README.md exists, and update it if necessary
 
 ## Commit Message Format

@@ -1,5 +1,112 @@
 # Odoo Development Standards
 
+## Security Implementation
+
+### CSV + XML Security Pattern (CRITICAL)
+
+**⚠️ NEVER mix CSV permissions with XML `perm_*` attributes - this causes problematic implementations!**
+
+#### ✅ Correct Approach: Separation of Concerns
+
+**CSV File (`security/ir.model.access.csv`)**: Controls ALL permissions
+```csv
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_model_system,model.system,model_my_model,base.group_system,1,1,1,1
+access_model_manager,model.manager,model_my_model,group_my_manager,1,1,1,1
+access_model_user,model.user,model_my_model,group_my_user,1,1,1,0
+```
+
+**XML File (`security/security.xml`)**: Groups definition and data filtering (record rules)
+```xml
+<!-- ✅ CORRECT: Groups definition -->
+<record id="group_my_user" model="res.groups">
+    <field name="name">My Module: User</field>
+    <field name="category_id" ref="base.module_category_human_resources"/>
+</record>
+
+<!-- ✅ CORRECT: Record rules for data filtering, NO permission attributes -->
+<record id="rule_my_model_user" model="ir.rule">
+    <field name="name">My Model: User access</field>
+    <field name="model_id" ref="model_my_model"/>
+    <field name="domain_force">[('user_id', '=', user.id)]</field>
+    <field name="groups" eval="[(4, ref('group_my_user'))]"/>
+    <!-- NO perm_read, perm_write, perm_create, perm_unlink attributes -->
+</record>
+```
+
+#### ❌ Problematic Approach: Mixing Systems
+
+```xml
+<!-- ❌ WRONG: Mixing permissions in XML causes access conflicts -->
+<record id="rule_my_model_user" model="ir.rule">
+    <field name="domain_force">[('user_id', '=', user.id)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="False"/>  <!-- ❌ Conflicts with CSV -->
+    <field name="perm_create" eval="True"/>
+    <field name="perm_unlink" eval="False"/>
+</record>
+```
+
+#### Security Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐
+│   CSV File      │    │   XML File       │
+│                 │    │                  │
+│ ✅ Permissions  │    │ ✅ Groups        │
+│ - Read: 1/0     │    │ - Definition     │
+│ - Write: 1/0    │    │ - Hierarchy      │
+│ - Create: 1/0   │    │                  │
+│ - Delete: 1/0   │    │ ✅ Record Rules  │
+│                 │    │ - Domain: [...]  │
+│                 │    │ - Groups: [...]  │
+│                 │    │ NO perm_* attrs  │
+└─────────────────┘    └──────────────────┘
+```
+
+#### Benefits of Proper Separation
+
+1. **✅ No Access Conflicts**: Clear separation prevents permission conflicts
+2. **✅ Maintainable**: Single source of truth for each concern
+3. **✅ Scalable**: Easy to modify permissions without touching record rules
+4. **✅ Standard**: Follows Odoo recommended practices
+5. **✅ Clean Code**: No sudo() workarounds needed
+
+#### Common Issues with Mixed Approach
+
+- "Due to security restrictions" errors during workflow actions
+- Complex sudo() workarounds cluttering business logic
+- Inconsistent permission behavior across different operations
+- Difficult debugging and maintenance
+
+### Group Hierarchy
+
+Use proper group inheritance for clean security:
+
+```xml
+<record id="group_my_user" model="res.groups">
+    <field name="name">My Module: User</field>
+    <field name="category_id" ref="base.module_category_human_resources"/>
+</record>
+
+<record id="group_my_manager" model="res.groups">
+    <field name="name">My Module: Manager</field>
+    <field name="category_id" ref="base.module_category_human_resources"/>
+    <field name="implied_ids" eval="[(4, ref('group_my_user'))]"/>
+</record>
+```
+
+### Record Rules Best Practices
+
+1. **Use OR logic for multiple conditions**:
+```xml
+<field name="domain_force">['|', ('state', 'in', ['approved', 'done']), ('user_id', '=', user.id)]</field>
+```
+
+2. **Avoid complex Python expressions in domains**
+3. **Test record rules with different user roles**
+4. **Document the business logic behind each rule**
+
 ## Code Organization
 
 - Organize code into logical segments:
@@ -15,6 +122,38 @@
 - Inline imports (e.g., `import traceback` inside try/except blocks) are strictly prohibited
 - All required modules must be imported at the file header, even if only used in error handling
 - All module files should include consistent author and company details with copyright information
+
+## Model Method Standards
+
+### Create Method Implementation
+
+**Standard Pattern for Odoo 15.0+:**
+```python
+@api.model_create_multi
+def create(self, vals_list):
+    """Create method with multi-record support."""
+    # Pre-processing logic
+    for vals in vals_list:
+        # Process individual vals dict
+        pass
+
+    # Call super with vals_list
+    records = super().create(vals_list)
+
+    # Post-processing logic
+    for record in records:
+        # Process individual created record
+        pass
+
+    return records
+```
+
+**Key Requirements:**
+- Always use `@api.model_create_multi` decorator for new models in Odoo 15.0+
+- Method signature must be `create(self, vals_list)` not `create(self, vals)`
+- Handle both single dict and list of dicts in vals_list parameter
+- Use `super().create(vals_list)` to call parent method
+- This pattern provides better performance and consistency with Odoo core
 
 ## Naming Conventions
 
@@ -75,6 +214,176 @@ def _search_is_expiring_soon(self, operator, value):
 - Public functions should contain all required business logic checks internally
 - Prefer moving domain definitions from Python model files to XML view files for greater flexibility
 
+## Action Handling Patterns
+
+### Getting Action Data for Smart Buttons and Redirects
+
+When returning action data from model methods (e.g., smart buttons, wizard redirects), always use `_for_xml_id()` instead of `ref().read()` to avoid permission errors:
+
+#### ✅ Correct Pattern
+```python
+def action_view_related_records(self):
+    """Smart button to view related records."""
+    # ✅ CORRECT: Use _for_xml_id() - works for all user groups
+    action = self.env["ir.actions.act_window"]._for_xml_id('module.action_related_records')
+    action['domain'] = [('parent_id', '=', self.id)]
+    action['context'] = {'default_parent_id': self.id}
+    return action
+```
+
+#### ❌ Problematic Pattern
+```python
+def action_view_related_records(self):
+    """Smart button to view related records."""
+    # ❌ WRONG: Causes "Access Error" for non-admin users
+    action = self.env.ref('module.action_related_records').read()[0]
+    action['domain'] = [('parent_id', '=', self.id)]
+    return action
+```
+
+#### Why This Matters
+- `ref().read()[0]` requires "Administration/Settings" group permissions
+- `_for_xml_id()` is designed for this use case and handles permissions internally
+- Smart buttons and wizard redirects should work for all authorized users, not just admins
+
+#### Common Use Cases
+- **Smart buttons**: Opening related records (bills, payments, moves)
+- **Wizard redirects**: Returning to list views after operations
+- **Menu actions**: Programmatically opening specific views
+- **Report actions**: Triggering report generation
+
+### Settings Actions
+
+When creating settings actions that inherit `res.config.settings`, **do NOT include a `name` field** in the action definition. The standard settings view will automatically use "Settings" as the title, preventing breadcrumb navigation issues.
+
+#### ✅ Correct Settings Action
+```xml
+<record id="action_module_settings" model="ir.actions.act_window">
+    <!-- NO name field here -->
+    <field name="type">ir.actions.act_window</field>
+    <field name="res_model">res.config.settings</field>
+    <field name="view_mode">form</field>
+    <field name="target">inline</field>
+    <field name="context">{'module': 'module_name'}</field>
+</record>
+```
+
+#### ❌ Problematic Settings Action
+```xml
+<record id="action_module_settings" model="ir.actions.act_window">
+    <field name="name">Module Settings</field>  <!-- REMOVE THIS -->
+    <field name="type">ir.actions.act_window</field>
+    <field name="res_model">res.config.settings</field>
+    <field name="view_mode">form</field>
+    <field name="target">inline</field>
+    <field name="context">{'module': 'module_name'}</field>
+</record>
+```
+
+#### Why This Matters
+- Including a `name` field causes breadcrumb navigation to show "Module Settings / Users" instead of "Settings / Users"
+- The standard settings view is designed to use "Settings" as the default title
+- This ensures consistent navigation experience across all Odoo settings pages
+- Prevents user confusion when navigating between different settings sections
+
+## Save Before Add Line Pattern
+
+### Forcing Parent Record Save Before Adding Child Records
+
+When working with One2many fields, it's often necessary to save the parent record before allowing users to add child records. This prevents issues with unsaved records and ensures proper data integrity.
+
+#### ✅ Implementation Pattern
+
+**1. Add Save Action to Parent Model:**
+```python
+def action_save_record(self):
+    """Save the current record and return to form view."""
+    self.ensure_one()
+    # No additional logic needed - just trigger save
+    return {
+        'type': 'ir.actions.act_window',
+        'res_model': self._name,
+        'res_id': self.id,
+        'view_mode': 'form',
+        'target': 'current',
+    }
+```
+
+**2. Add Save Button in Form View:**
+```xml
+<header>
+    <!-- Other buttons -->
+    <button name="action_save_record" type="object" string="Save"
+            class="oe_highlight"
+            attrs="{'invisible': [('id', '!=', False)]}"/>
+</header>
+```
+
+**3. Configure One2many Field with Context:**
+```xml
+<field name="line_ids"
+       context="{'default_parent_id': id}"
+       attrs="{'readonly': [('id', '=', False)]}">
+    <tree editable="bottom">
+        <!-- Tree view fields -->
+    </tree>
+</field>
+```
+
+**4. Add Helper Text for User Guidance:**
+```xml
+<div class="alert alert-info" attrs="{'invisible': [('id', '!=', False)]}">
+    <strong>Save Required:</strong> Please save this record before adding lines.
+</div>
+```
+
+#### ✅ Complete Example
+```xml
+<form string="Parent Record">
+    <header>
+        <button name="action_save_record" type="object" string="Save"
+                class="oe_highlight"
+                attrs="{'invisible': [('id', '!=', False)]}"/>
+        <field name="state" widget="statusbar"/>
+    </header>
+    <sheet>
+        <group>
+            <field name="name"/>
+            <field name="date"/>
+        </group>
+
+        <div class="alert alert-info" attrs="{'invisible': [('id', '!=', False)]}">
+            <strong>Save Required:</strong> Please save this record before adding lines.
+        </div>
+
+        <notebook>
+            <page string="Lines">
+                <field name="line_ids"
+                       context="{'default_parent_id': id}"
+                       attrs="{'readonly': [('id', '=', False)]}">
+                    <tree editable="bottom">
+                        <field name="description"/>
+                        <field name="amount"/>
+                    </tree>
+                </field>
+            </page>
+        </notebook>
+    </sheet>
+</form>
+```
+
+#### Key Benefits
+- **Data Integrity**: Ensures parent record exists before creating child records
+- **User Experience**: Clear guidance on required actions
+- **Error Prevention**: Avoids "record not found" errors when adding lines
+- **Standard Pattern**: Follows Odoo's recommended approach for parent-child relationships
+
+#### When to Use
+- **One2many fields** where child records reference parent ID
+- **Complex forms** with multiple related record types
+- **Workflow-dependent records** where parent state affects child creation
+- **Any scenario** where unsaved parent records cause child record issues
+
 ## XML and Data Files
 
 - In XML data files, use noupdate="0" for master data to ensure changes are picked up when updating modules
@@ -117,7 +426,7 @@ The new `<chatter/>` tag (Odoo 18.0+) automatically provides all chatter functio
 - Use 'attrs' attribute for conditional field visibility, readonly, and required states
 - Field widget registration uses field_registry.add() instead of registry.category()
 - OWL components use older syntax with different import patterns
-- Models should override create() method (create_multi is for Odoo 16+)
+- Models should use @api.model_create_multi with create(vals_list) as the standard approach (available in Odoo 15.0+)
 - Use traditional JavaScript patterns for field widgets extending basic_fields
 - In XML views, use invisible="1" or attrs="{'invisible': [...]}" for conditional visibility
 - Use traditional jQuery and widget patterns for custom field implementations

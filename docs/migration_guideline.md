@@ -66,7 +66,8 @@ Asset bundles work similarly in Odoo 17.0:
 
 #### ORM Methods
 
-- Models should override `create_multi` instead of `create` to avoid deprecation warnings
+- Models should override `create_multi` instead of `create` to avoid deprecation warnings (Odoo 17+)
+- Models should use `@api.model_create_multi` with `create(vals_list)` as the standard approach (Odoo 15.0+)
 - Prefer using `read_group()` over `_read_group()` as the former is the public API method
 - Methods prefixed with underscore are typically internal implementation details and should be avoided in custom code
 
@@ -178,10 +179,15 @@ def method(self):
     # New: company.period_lock_date
     lock_date = self.company_id.period_lock_date
 
-# Update create method to create_multi
+# Update create method to create_multi (Odoo 17+)
 @api.model_create_multi
 def create_multi(self, vals_list):
     return super().create_multi(vals_list)
+
+# Standard approach for Odoo 15.0+: use @api.model_create_multi with create(vals_list)
+@api.model_create_multi
+def create(self, vals_list):
+    return super().create(vals_list)
 ```
 
 ## Module-Specific Migration Notes
@@ -298,6 +304,8 @@ Asset bundles still work similarly in Odoo 18.0, but there are some changes to b
 
 #### ORM Methods
 
+- Models should override `create_multi` instead of `create` to avoid deprecation warnings (Odoo 18+)
+- Models should use `@api.model_create_multi` with `create(vals_list)` as the standard approach (Odoo 15.0+)
 - Prefer using `read_group()` over `_read_group()` as the former is the public API method
 - Methods prefixed with underscore are typically internal implementation details and should be avoided in custom code
 
@@ -460,12 +468,17 @@ When backporting modern Odoo code (17+) to Odoo 15, you need to reverse many of 
 #### 2. Model Method Backporting
 
 ```python
-# Odoo 17+ (Modern)
+# Odoo 17+ (Modern) - create_multi method
+@api.model_create_multi
+def create_multi(self, vals_list):
+    return super().create_multi(vals_list)
+
+# Odoo 15+ (Standard) - model_create_multi decorator with create method
 @api.model_create_multi
 def create(self, vals_list):
     return super().create(vals_list)
 
-# Odoo 15 (Legacy)
+# Odoo 15 (Legacy/Deprecated) - single record create (avoid in new code)
 @api.model
 def create(self, vals):
     return super().create(vals)
@@ -512,7 +525,8 @@ field_registry.add('my_widget', MyWidget);
 
 #### During Backporting
 - [ ] Convert modern view syntax to attrs/states
-- [ ] Replace create_multi with create
+- [ ] Keep `@api.model_create_multi` with `create(vals_list)` - this is the standard for Odoo 15.0+
+- [ ] Only replace with single `create(vals)` if targeting Odoo 14 or earlier
 - [ ] Update JavaScript widget patterns
 - [ ] Migrate asset definitions to legacy format
 - [ ] Test with Odoo 15 environment
