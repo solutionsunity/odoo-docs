@@ -24,10 +24,10 @@ curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/instal
 ```
 
 **What the installer does:**
-1. 📥 Clones/updates the odoo-docs repository to `/opt/odoo/odoo-docs`
-2. 📋 Copies configuration templates to your current directory (`.augment-guidelines`, `env-reference.json`)
-3. 📝 Guides you to run `link.sh` next for symlinks
-4. ✅ Ready for template customization!
+- **Step 1**: 📥 Clones/updates the odoo-docs repository to `/opt/odoo/odoo-docs`
+- **Step 2**: 📋 Copies configuration templates to your current directory (`.augment-guidelines`, `env-reference.json`)
+- **Step 3**: 📝 Guides you to run `link.sh` next for symlinks
+- **Step 4**: ✅ Ready for template customization!
 
 ### Option 2: Link to Existing Installation
 
