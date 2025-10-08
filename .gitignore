@@ -1,6 +1,5 @@
 # Private configurations (root-relative paths only)
 /.augment-guidelines
-/docs/env-reference.json
 /env-reference.json
 
 # Private workarea (contains private repositories and code)

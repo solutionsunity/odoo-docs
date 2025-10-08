@@ -128,28 +128,56 @@ ensure_source_files() {
 update_gitignore() {
     local gitignore_file="$TARGET_DIR/.gitignore"
 
-    echo "Updating .gitignore..."
-
-    # Check if ALL required entries exist to avoid duplicates
-    local needs_update=false
-
-    # Check each pattern individually (root-relative paths only)
-    if ! grep -q "^/docs$" "$gitignore_file" 2>/dev/null || \
-       ! grep -q "^/\.augment-guidelines$" "$gitignore_file" 2>/dev/null || \
-       ! grep -q "^/env-reference\.json$" "$gitignore_file" 2>/dev/null; then
-        needs_update=true
+    # Check if we're in a git repository
+    if ! git -C "$TARGET_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+        echo -e "${YELLOW}⚠️  Not a git repository - skipping .gitignore updates${NC}"
+        echo -e "${BLUE}ℹ️${NC}  If you initialize git later, run this script again to update .gitignore"
+        return 0
     fi
 
-    if [[ "$needs_update" == "true" ]]; then
-        {
-            echo ""
-            echo "# Odoo Documentation (symlinked - root-relative paths only)"
-            echo "/docs"
-            echo "/.augment-guidelines"
-            echo "/env-reference.json"
-        } >> "$gitignore_file"
-        echo -e "${GREEN}✓${NC} Updated .gitignore with root-relative symlink entries"
-        echo -e "${BLUE}ℹ️${NC}  Using root-relative paths (/) to preserve module docs directories"
+    echo "Updating .gitignore..."
+
+    # Create .gitignore if it doesn't exist
+    if [[ ! -f "$gitignore_file" ]]; then
+        touch "$gitignore_file"
+    fi
+
+    # Check which entries are missing
+    local missing_entries=()
+
+    if ! grep -q "^/docs$" "$gitignore_file" 2>/dev/null; then
+        missing_entries+=("/docs")
+    fi
+
+    if ! grep -q "^/\.augment-guidelines$" "$gitignore_file" 2>/dev/null; then
+        missing_entries+=("/.augment-guidelines")
+    fi
+
+    if ! grep -q "^/env-reference\.json$" "$gitignore_file" 2>/dev/null; then
+        missing_entries+=("/env-reference.json")
+    fi
+
+    if [[ ${#missing_entries[@]} -gt 0 ]]; then
+        # Create temporary file with new entries at the top
+        local temp_file=$(mktemp)
+
+        # Add header and missing entries
+        echo "# Odoo Documentation (symlinked - root-relative paths only)" > "$temp_file"
+        for entry in "${missing_entries[@]}"; do
+            echo "$entry" >> "$temp_file"
+        done
+        echo "" >> "$temp_file"
+
+        # Append existing .gitignore content (if any)
+        if [[ -s "$gitignore_file" ]]; then
+            cat "$gitignore_file" >> "$temp_file"
+        fi
+
+        # Replace original with updated content
+        mv "$temp_file" "$gitignore_file"
+
+        echo -e "${GREEN}✓${NC} Updated .gitignore with missing entries: ${missing_entries[*]}"
+        echo -e "${BLUE}ℹ️${NC}  Added entries at top of file using root-relative paths (/) to preserve module docs directories"
     else
         echo -e "${GREEN}✓${NC} .gitignore already contains all required symlink entries"
     fi
