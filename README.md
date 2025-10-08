@@ -14,9 +14,9 @@ Centralized documentation and development standards for **AI-powered Odoo develo
 - 🔄 **Auto-Update** - Keep standards current across all projects
 - 🏗️ **Template System** - Ready-to-use AI and development configurations
 
-## 🚀 One-Line Installation
+## 🚀 Quick Setup
 
-### For AI Agents & Developers
+### Option 1: One-Line Installation (Recommended)
 
 **Install in current directory (default docs path: `/opt/odoo-docs`):**
 ```bash
@@ -34,6 +34,22 @@ curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/instal
 3. 🔗 Creates symlinks to documentation (`docs/`)
 4. 📝 Updates `.gitignore` to ignore symlinks and private configs
 5. ✅ Ready for AI-powered development!
+
+### Option 2: Link to Existing Installation
+
+If you already have odoo-docs installed, simply create symlinks from your project:
+
+```bash
+# From your project directory (e.g., /opt/odoo/workarea)
+/opt/odoo/odoo-docs/link.sh
+```
+
+**What the linker does:**
+- 🔗 Creates symlink to `docs/` directory
+- 🔗 Creates symlink to `.augment-guidelines` (if exists)
+- 🔗 Creates symlink to `env-reference.json` (if exists)
+- ✅ Validates target directory and prevents conflicts
+- 🔄 Detects existing symlinks and avoids duplicates
 
 ### Manual Installation
 
@@ -72,9 +88,10 @@ odoo-docs/
 │   └── sync.sh                    # Synchronization script
 ├── templates/                     # 🔧 Configuration templates
 │   ├── .augment-guidelines.template
-│   └── dev-config.json.template
-├── .augment-guidelines            # 🤖 AI assistant configuration (ignored)
-├── dev-config.json               # ⚙️ Development configuration (ignored)
+│   └── env-reference.json.template
+├── .augment-guidelines            # 🤖 AI assistant configuration
+├── env-reference.json            # 🔧 Environment reference configuration
+├── link.sh                       # 🔗 Symlink creation script
 └── README.md                     # This file
 ```
 

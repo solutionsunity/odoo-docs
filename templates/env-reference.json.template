@@ -6,18 +6,16 @@
     "website": "https://yourcompany.com"
   },
   "odoo": {
-    "version": "17.0",
+    "version": "18.0",
     "core_path": "/usr/lib/python3/dist-packages/odoo",
     "config_file": "/etc/odoo/odoo.conf",
     "user": "odoo"
   },
   "branding": {
+    "author": "AUTHOR_NAME",
+    "website": "https://company.com",
     "module_icon": "docs/module_icon.png",
     "default_license": "LGPL-3",
-    "default_version": "17.0.1.0.0"
-  },
-  "database": {
-    "test_prefix": "odoo-test-",
-    "default_db": "odoo"
+    "default_version": "18.0.1.0.0"
   }
 }
