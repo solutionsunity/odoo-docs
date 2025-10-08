@@ -1,7 +1,7 @@
 # Private configurations
 .augment-guidelines
 docs/env-reference.json
-module-config.json
+env-reference.json
 
 # Private workarea (contains private repositories and code)
 workarea/
