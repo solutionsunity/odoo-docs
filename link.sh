@@ -32,13 +32,13 @@ create_symlink() {
     local source_path="$1"
     local target_path="$2"
     local description="$3"
-    
+
     # Check if source exists
     if [[ ! -e "$source_path" ]]; then
         echo -e "${YELLOW}⚠️  Skipping $description: Source not found at $source_path${NC}"
         return 0
     fi
-    
+
     # Check if target already exists
     if [[ -e "$target_path" || -L "$target_path" ]]; then
         if [[ -L "$target_path" ]]; then
@@ -64,7 +64,7 @@ create_symlink() {
             return 1
         fi
     fi
-    
+
     # Create the symlink
     ln -s "$source_path" "$target_path"
     echo -e "${GREEN}✓${NC} $description: Created symlink $target_path -> $source_path"
@@ -78,14 +78,14 @@ check_target_directory() {
         echo -e "  Please run this script from your project repository directory"
         exit 1
     fi
-    
+
     # Check if we're in a reasonable location (under /opt/odoo/ but not in odoo-docs)
     if [[ "$TARGET_DIR" == "/opt/odoo/odoo-docs"* ]]; then
         echo -e "${RED}✗ Error: Cannot create symlinks within the odoo-docs directory${NC}"
         echo -e "  Please run this script from your project repository directory"
         exit 1
     fi
-    
+
     # Warn if not under /opt/odoo/
     if [[ "$TARGET_DIR" != "/opt/odoo/"* ]]; then
         echo -e "${YELLOW}⚠️  Warning: You're not in the standard /opt/odoo/ directory structure${NC}"
@@ -99,9 +99,68 @@ check_target_directory() {
     fi
 }
 
+# Function to ensure templates are copied to source directory
+ensure_source_files() {
+    echo "Ensuring source files exist..."
+
+    # Copy .augment-guidelines from template if missing
+    if [[ ! -e "$SOURCE_DIR/.augment-guidelines" ]]; then
+        if [[ -e "$SOURCE_DIR/templates/.augment-guidelines.template" ]]; then
+            cp "$SOURCE_DIR/templates/.augment-guidelines.template" "$SOURCE_DIR/.augment-guidelines"
+            echo -e "${GREEN}✓${NC} Created .augment-guidelines from template"
+        else
+            echo -e "${YELLOW}⚠️  Template not found: .augment-guidelines.template${NC}"
+        fi
+    fi
+
+    # Copy env-reference.json from template if missing
+    if [[ ! -e "$SOURCE_DIR/env-reference.json" ]]; then
+        if [[ -e "$SOURCE_DIR/templates/env-reference.json.template" ]]; then
+            cp "$SOURCE_DIR/templates/env-reference.json.template" "$SOURCE_DIR/env-reference.json"
+            echo -e "${GREEN}✓${NC} Created env-reference.json from template"
+        else
+            echo -e "${YELLOW}⚠️  Template not found: env-reference.json.template${NC}"
+        fi
+    fi
+}
+
+# Function to update .gitignore
+update_gitignore() {
+    local gitignore_file="$TARGET_DIR/.gitignore"
+
+    echo "Updating .gitignore..."
+
+    # Check if ALL required entries exist to avoid duplicates
+    local needs_update=false
+
+    # Check each pattern individually (root-relative paths only)
+    if ! grep -q "^/docs$" "$gitignore_file" 2>/dev/null || \
+       ! grep -q "^/\.augment-guidelines$" "$gitignore_file" 2>/dev/null || \
+       ! grep -q "^/env-reference\.json$" "$gitignore_file" 2>/dev/null; then
+        needs_update=true
+    fi
+
+    if [[ "$needs_update" == "true" ]]; then
+        {
+            echo ""
+            echo "# Odoo Documentation (symlinked - root-relative paths only)"
+            echo "/docs"
+            echo "/.augment-guidelines"
+            echo "/env-reference.json"
+        } >> "$gitignore_file"
+        echo -e "${GREEN}✓${NC} Updated .gitignore with root-relative symlink entries"
+        echo -e "${BLUE}ℹ️${NC}  Using root-relative paths (/) to preserve module docs directories"
+    else
+        echo -e "${GREEN}✓${NC} .gitignore already contains all required symlink entries"
+    fi
+}
+
 # Main execution
 echo "Checking target directory..."
 check_target_directory
+
+echo ""
+ensure_source_files
 
 echo ""
 echo "Creating symlinks..."
@@ -110,6 +169,9 @@ echo "Creating symlinks..."
 create_symlink "$SOURCE_DIR/docs" "$TARGET_DIR/docs" "Documentation directory"
 create_symlink "$SOURCE_DIR/.augment-guidelines" "$TARGET_DIR/.augment-guidelines" "Augment guidelines"
 create_symlink "$SOURCE_DIR/env-reference.json" "$TARGET_DIR/env-reference.json" "Environment reference"
+
+echo ""
+update_gitignore
 
 echo ""
 echo -e "${GREEN}✓ Linking process completed!${NC}"

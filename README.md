@@ -31,9 +31,7 @@ curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/instal
 **What the installer does:**
 1. 📥 Clones/updates the odoo-docs repository (default: `/opt/odoo/odoo-docs`)
 2. 📋 Copies configuration templates (`.augment-guidelines`, `env-reference.json`)
-3. 🔗 Creates symlinks to documentation (`docs/`)
-4. 📝 Updates `.gitignore` to ignore symlinks and private configs
-5. ✅ Ready for AI-powered development!
+3. ✅ Ready for template customization!
 
 ### Option 2: Link to Existing Installation
 
@@ -45,9 +43,11 @@ If you already have odoo-docs installed, simply create symlinks from your projec
 ```
 
 **What the linker does:**
+- 📋 Copies templates to odoo-docs root (if missing)
 - 🔗 Creates symlink to `docs/` directory
-- 🔗 Creates symlink to `.augment-guidelines` (if exists)
-- 🔗 Creates symlink to `env-reference.json` (if exists)
+- 🔗 Creates symlink to `.augment-guidelines`
+- 🔗 Creates symlink to `env-reference.json`
+- 📝 Updates `.gitignore` with proper root-relative paths (`/docs`, `/.augment-guidelines`, `/env-reference.json`)
 - ✅ Validates target directory and prevents conflicts
 - 🔄 Detects existing symlinks and avoids duplicates
 
@@ -66,11 +66,8 @@ cd /path/to/your/odoo-project
 cp /opt/odoo/odoo-docs/templates/.augment-guidelines.template .augment-guidelines
 cp /opt/odoo/odoo-docs/templates/env-reference.json.template env-reference.json
 
-# 4. Create documentation symlink
-ln -sf /opt/odoo/odoo-docs/docs docs
-
-# 5. Update .gitignore
-echo -e "\n# Odoo Documentation\ndocs\n.augment-guidelines\nenv-reference.json" >> .gitignore
+# 4. Create symlinks and update .gitignore
+/opt/odoo/odoo-docs/link.sh
 ```
 
 ## 📁 Repository Structure

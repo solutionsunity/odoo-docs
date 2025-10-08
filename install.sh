@@ -41,35 +41,16 @@ else
     echo "⚠️  env-reference.json already exists, skipping"
 fi
 
-# Create symlinks
-echo "🔗 Creating symlinks..."
-ln -sf "$DOCS_PATH/docs" docs
 
-# Update .gitignore
-echo "📝 Updating .gitignore..."
-{
-    echo ""
-    echo "# Odoo Documentation (symlinked)"
-    echo "docs"
-    echo ""
-    echo "# Private configurations"
-    echo ".augment-guidelines"
-    echo "env-reference.json"
-} >> .gitignore
 
 echo ""
 echo "🎉 Installation complete!"
 echo ""
-echo "📚 Available documentation:"
-echo "   ./docs/git.md              - Git standards"
-echo "   ./docs/code_standard.md    - Coding standards"
-echo "   ./docs/frontend.md         - Frontend guidelines"
-echo "   ./docs/owl.md              - OWL component standards"
-echo ""
-echo "🤖 AI Configuration:"
+echo "📋 Created configuration files:"
 echo "   ./.augment-guidelines      - Your private AI config"
+echo "   ./env-reference.json       - Environment reference"
 echo ""
-echo "🔄 Stay updated anytime:"
-echo "   ./docs/sync.sh"
+echo "🔗 Next step: Create symlinks to documentation"
+echo "   Run: $DOCS_PATH/link.sh in your repo!"
 echo ""
 echo "Happy AI-powered Odoo development! 🚀"
