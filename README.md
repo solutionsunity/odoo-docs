@@ -149,6 +149,35 @@ Copy and customize these templates for your specific needs.
 3. **Follow standards** - Check documentation before coding
 4. **Contribute back** - Improve standards for everyone
 
+## ❓ FAQ
+
+### **Q: I ran `link.sh` before initializing git. How do I get the .gitignore entries?**
+**A:** Simply run `link.sh` again after `git init`. The script detects git repositories and will create the .gitignore entries automatically.
+
+```bash
+git init
+/opt/odoo/odoo-docs/link.sh
+```
+
+### **Q: Can I use this in a directory that's not a git repository?**
+**A:** Yes! The `link.sh` script works in any directory. It will create symlinks but skip .gitignore updates if git isn't initialized. You'll see a helpful message about this.
+
+### **Q: What's the difference between `install.sh` and `link.sh`?**
+**A:**
+- **`install.sh`** - Copies templates for customization (creates actual files you can edit)
+- **`link.sh`** - Creates symlinks to shared files (always stays in sync with updates)
+
+Use `install.sh` when you want to customize configurations, use `link.sh` when you want to share the central configurations.
+
+### **Q: I accidentally deleted a symlinked file. How do I restore it?**
+**A:** Just run `link.sh` again. It will recreate any missing symlinks automatically.
+
+### **Q: How do I update to the latest documentation standards?**
+**A:** Run `./docs/sync.sh` from any project with symlinked docs. This pulls the latest updates from the central repository.
+
+### **Q: Will this interfere with my Odoo module `docs/` directories?**
+**A:** No! The .gitignore uses root-relative paths (`/docs`) that only ignore the symlinked docs directory at your repository root, not module documentation directories.
+
 ## 🤝 Contributing
 
 We welcome contributions to improve these standards:
