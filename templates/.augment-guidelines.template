@@ -6,26 +6,25 @@ commitment = "ever-present, always debugging at your side"
 
 # Agent Role and Development Environment
 - You are an Odoo/OWL architect and QC specialist with minimalist code and strict syntax and bug free mentality. You are tasked to utilize this activated knowledge to creating new modules and enhancing existing or fix issues.
-- You are using WSL2 development environment with Odoo 17.0 CE installed via apt, with codebase at /usr/lib/python3/dist-packages/odoo
+- You are using WSL2 development environment with Odoo CE installed via apt, with codebase at /usr/lib/python3/dist-packages/odoo
 - Current workspace structure:
-  * Main workspace: /opt/odoo (odoo-workarea repository)
-  * Private repositories: /opt/odoo/workarea/ (ignored by git)
-  * UAC modules: /opt/odoo/workarea/uac-odoo/
-  * SU modules: /opt/odoo/workarea/su-odoo/ (organized as 17.0, 17.0-dx, 17.0-oca, 17.0-paid)
-  * Additional modules: /opt/odoo/workarea/modules/
-  * Other custom code: /opt/addons organized by Free (17.0), Paid (17.0-paid), OCA (17.0-oca), and custom modules (17.0-dx)
+  * Documentation: /opt/odoo/odoo-docs/ (central docs repository)
+  * Current repository: Varies by project (su-odoo, uac-odoo, workarea, etc.) but all Odoo repos are under `/opt/odoo/` except for Odoo standard codebase.
+  * Documentation access: ./docs/ (symlink to /opt/odoo/odoo-docs/docs/)
+  * Sync latest: ./docs/sync.sh (synchronization script)
+  * Environment reference: ./env-reference.json (development environment settings)
 - Use the configuration file at /etc/odoo/odoo.conf when running Odoo commands.
-- For testing modules: stop Odoo service, restart postgres to disconnect DBs, run test commands using `sudo -u odoo` with new database named `odoo-<RANDOM_STRING>`, then remove created db and restart odoo service.
+- For testing modules: User would do manual testing, but your job is to ensure xml/py/js/css are in valid syntax, then ask the user to test.
 - In the WSL environment, use `sudo -u odoo` to run commands as the odoo user.
-- When implementing something new use Odoo local codebase as examples source.
+- When implementing something new use Odoo local codebase (`/usr/lib/python3/dist-packages/odoo/addons`) as examples source.
 - When an issue is not resolved from first try, refer to Odoo local codebase for examples to reach resolution.
 
 # Repository Structure
-- This is the odoo-workarea repository (public) containing development standards and documentation
-- The workarea/ directory contains private repositories and is ignored by git
-- All development standards are centralized in docs/ folder
-- Templates for private configurations are in templates/ folder
-- Use dev-config.json for project-specific settings (author, company, paths, etc.)
+- This is a project repository containing Odoo modules (varies by project)
+- Documentation is accessed via symlink: ./docs/ -> /opt/odoo/odoo-docs/docs/
+- Central documentation repository: /opt/odoo/odoo-docs/ (public standards and templates)
+- Sync documentation: Run ./docs/sync.sh to get latest standards
+- Environment reference: ./env-reference.json contains development environment settings
 
 # Documentation References
 Before performing any operations, always refer to the appropriate documentation files:
@@ -36,9 +35,15 @@ Before performing any operations, always refer to the appropriate documentation 
 - **Before migration tasks**: Read `docs/migration_guideline.md` for migration procedures and standards
 - Always check the relevant documentation file first to ensure compliance with established standards and procedures
 
-# CUSTOMIZE THESE PATHS AND SETTINGS FOR YOUR ENVIRONMENT:
+# Documentation Updates
+- Before starting any development session, run `./docs/sync.sh` to get latest standards
+- Documentation is always available via ./docs/ symlink
+- Environment reference available at ./env-reference.json
+- All development standards are centralized and automatically updated
+
+# CUSTOMIZE THESE SETTINGS FOR YOUR ENVIRONMENT:
 # - Update workspace paths to match your setup
-# - Modify Odoo version if different
+# - Modify Odoo version if different (check env-reference.json)
 # - Adjust development environment details
 # - Update repository paths and organization
 # - Copy this file to .augment-guidelines and customize

@@ -18,7 +18,7 @@ Centralized documentation and development standards for **AI-powered Odoo develo
 
 ### Option 1: One-Line Installation (Recommended)
 
-**Install in current directory (default docs path: `/opt/odoo-docs`):**
+**Install in current directory (default docs path: `/opt/odoo/odoo-docs`):**
 ```bash
 curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/install.sh | bash
 ```
@@ -29,8 +29,8 @@ curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/instal
 ```
 
 **What the installer does:**
-1. 📥 Clones/updates the odoo-docs repository (default: `/opt/odoo-docs`)
-2. 📋 Copies configuration templates (`.augment-guidelines`, `dev-config.json`)
+1. 📥 Clones/updates the odoo-docs repository (default: `/opt/odoo/odoo-docs`)
+2. 📋 Copies configuration templates (`.augment-guidelines`, `env-reference.json`)
 3. 🔗 Creates symlinks to documentation (`docs/`)
 4. 📝 Updates `.gitignore` to ignore symlinks and private configs
 5. ✅ Ready for AI-powered development!
@@ -57,20 +57,20 @@ If you prefer manual setup:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/solutionsunity/odoo-docs.git /opt/odoo-docs
+git clone https://github.com/solutionsunity/odoo-docs.git /opt/odoo/odoo-docs
 
 # 2. Navigate to your project
 cd /path/to/your/odoo-project
 
 # 3. Copy templates for private configuration
-cp /opt/odoo-docs/templates/.augment-guidelines.template .augment-guidelines
-cp /opt/odoo-docs/templates/dev-config.json.template dev-config.json
+cp /opt/odoo/odoo-docs/templates/.augment-guidelines.template .augment-guidelines
+cp /opt/odoo/odoo-docs/templates/env-reference.json.template env-reference.json
 
 # 4. Create documentation symlink
-ln -sf /opt/odoo-docs/docs docs
+ln -sf /opt/odoo/odoo-docs/docs docs
 
 # 5. Update .gitignore
-echo -e "\n# Odoo Documentation\ndocs\n.augment-guidelines\ndev-config.json" >> .gitignore
+echo -e "\n# Odoo Documentation\ndocs\n.augment-guidelines\nenv-reference.json" >> .gitignore
 ```
 
 ## 📁 Repository Structure
@@ -141,7 +141,7 @@ This script automatically:
 Use the provided templates to set up your development environment:
 
 - **`.augment-guidelines.template`** - AI assistant configuration
-- **`dev-config.json.template`** - Development environment settings
+- **`env-reference.json.template`** - Development environment settings
 
 Copy and customize these templates for your specific needs.
 

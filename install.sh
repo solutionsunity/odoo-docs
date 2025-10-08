@@ -5,7 +5,7 @@
 set -e
 
 # Default installation path
-DEFAULT_DOCS_PATH="/opt/odoo-docs"
+DEFAULT_DOCS_PATH="/opt/odoo/odoo-docs"
 PROJECT_PATH="${1:-$(pwd)}"
 DOCS_PATH="${2:-$DEFAULT_DOCS_PATH}"
 
@@ -34,11 +34,11 @@ else
     echo "⚠️  .augment-guidelines already exists, skipping"
 fi
 
-if [ ! -f "dev-config.json" ]; then
-    cp "$DOCS_PATH/templates/dev-config.json.template" "dev-config.json"
-    echo "✅ Created dev-config.json from template"
+if [ ! -f "env-reference.json" ]; then
+    cp "$DOCS_PATH/templates/env-reference.json.template" "env-reference.json"
+    echo "✅ Created env-reference.json from template"
 else
-    echo "⚠️  dev-config.json already exists, skipping"
+    echo "⚠️  env-reference.json already exists, skipping"
 fi
 
 # Create symlinks
@@ -54,7 +54,7 @@ echo "📝 Updating .gitignore..."
     echo ""
     echo "# Private configurations"
     echo ".augment-guidelines"
-    echo "dev-config.json"
+    echo "env-reference.json"
 } >> .gitignore
 
 echo ""
