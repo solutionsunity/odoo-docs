@@ -4,10 +4,9 @@
 
 set -e
 
-# Default installation path
-DEFAULT_DOCS_PATH="/opt/odoo/odoo-docs"
+# Standard installation path (centralized for all projects)
+DOCS_PATH="/opt/odoo/odoo-docs"
 PROJECT_PATH="${1:-$(pwd)}"
-DOCS_PATH="${2:-$DEFAULT_DOCS_PATH}"
 
 echo "🤖 Installing Odoo Development Documentation for AI Agents..."
 echo "📁 Project: $PROJECT_PATH"

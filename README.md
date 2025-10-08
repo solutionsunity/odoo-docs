@@ -23,14 +23,14 @@ Centralized documentation and development standards for **AI-powered Odoo develo
 curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/install.sh | bash
 ```
 
-**Install with custom odoo-docs repository location:**
+**Install templates in specific project directory:**
 ```bash
-# Syntax: bash -s [project_path] [odoo-docs_path]
-curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/install.sh | bash -s /path/to/project /custom/odoo-docs
+# Syntax: bash -s [project_path]
+curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/install.sh | bash -s /path/to/project
 ```
 
 **What the installer does:**
-- 📥 Clones/updates the odoo-docs repository (default: `/opt/odoo/odoo-docs`)
+- 📥 Clones/updates the odoo-docs repository to `/opt/odoo/odoo-docs` (standardized location)
 - 📋 Copies configuration templates to your project directory
 - 📝 Guides you to run `link.sh` next
 
