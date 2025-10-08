@@ -16,20 +16,25 @@ Centralized documentation and development standards for **AI-powered Odoo develo
 
 ## 🚀 Quick Setup
 
-### Option 1: One-Line Installation (Recommended)
+### Step 1: One-Line Installation (Recommended)
 
 **Install templates in current directory:**
 ```bash
 curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/install.sh | bash
 ```
 
-**What the installer does:**
-- **Step 1**: 📥 Clones/updates the odoo-docs repository to `/opt/odoo/odoo-docs`
-- **Step 2**: 📋 Copies configuration templates to your current directory (`.augment-guidelines`, `env-reference.json`)
-- **Step 3**: 📝 Guides you to run `link.sh` next for symlinks
-- **Step 4**: ✅ Ready for template customization!
+**Install with custom odoo-docs repository location:**
+```bash
+# Syntax: bash -s [project_path] [odoo-docs_path]
+curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/install.sh | bash -s /path/to/project /custom/odoo-docs
+```
 
-### Option 2: Link to Existing Installation
+**What the installer does:**
+- 📥 Clones/updates the odoo-docs repository (default: `/opt/odoo/odoo-docs`)
+- 📋 Copies configuration templates to your project directory
+- 📝 Guides you to run `link.sh` next
+
+### Step 2: Link to Existing Installation
 
 If you already have odoo-docs installed, simply create symlinks from your project:
 
