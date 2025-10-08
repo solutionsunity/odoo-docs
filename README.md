@@ -18,12 +18,12 @@ Centralized documentation and development standards for **AI-powered Odoo develo
 
 ### Step 1: One-Line Installation (Recommended)
 
-**Install templates in current directory:**
+**Install in default directory:** (`/opt/odoo/odoo-docs`)
 ```bash
 curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/install.sh | bash
 ```
 
-**Install templates in specific project directory:**
+**Install in specific project directory:**
 ```bash
 # Syntax: bash -s [project_path]
 curl -sSL https://raw.githubusercontent.com/solutionsunity/odoo-docs/main/install.sh | bash -s /path/to/project
