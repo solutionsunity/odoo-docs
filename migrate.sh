@@ -36,12 +36,25 @@ else
 fi
 echo ""
 
-# Function to check if directory has old configuration
+# Function to check if directory needs migration
 has_old_config() {
     local dir="$1"
-    # Check for files or symlinks (even broken ones)
-    [[ -e "$dir/.augment-guidelines" ]] || [[ -L "$dir/.augment-guidelines" ]] || \
-    [[ -e "$dir/env-reference.json" ]] || [[ -L "$dir/env-reference.json" ]]
+
+    # Check for old files or symlinks (even broken ones)
+    if [[ -e "$dir/.augment-guidelines" ]] || [[ -L "$dir/.augment-guidelines" ]] || \
+       [[ -e "$dir/env-reference.json" ]] || [[ -L "$dir/env-reference.json" ]]; then
+        return 0
+    fi
+
+    # Check if .gitignore is missing /.augment/ entry
+    if [[ -f "$dir/.gitignore" ]]; then
+        # If .gitignore exists but doesn't have /.augment/ covered, needs migration
+        if ! grep -qE "^(\.augment/|/\.augment/|\.augment\*|/\.augment\*)$" "$dir/.gitignore" 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    return 1
 }
 
 # Function to scan for directories with old configuration
