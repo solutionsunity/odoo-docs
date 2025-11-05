@@ -487,6 +487,140 @@ def action_save_record(self):
 - Use noupdate="1" for initial values that should not be overwritten on module update
 - Use format_html() with _get_html_link() helper to create clickable record links in chatter messages
 
+### Binary Field Widget Usage
+
+**Binary fields with `attachment=True` do NOT need explicit `widget="binary"` in form views.**
+
+Odoo automatically applies the correct widget based on the field type. Explicitly specifying `widget="binary"` is redundant and can be omitted.
+
+#### ✅ Correct Pattern (Odoo Standard)
+
+```python
+# Model definition
+class DocumentVersion(models.Model):
+    attachment_datas = fields.Binary(
+        string='File',
+        attachment=True  # Stores in ir.attachment
+    )
+    attachment_name = fields.Char('Filename')
+```
+
+```xml
+<!-- Form view - NO widget attribute needed -->
+<field name="attachment_datas" filename="attachment_name"/>
+```
+
+#### ❌ Redundant Pattern (Works but unnecessary)
+
+```xml
+<!-- Form view - widget="binary" is redundant -->
+<field name="attachment_datas" widget="binary" filename="attachment_name"/>
+```
+
+#### Reference from Odoo Core
+
+From `/usr/lib/python3/dist-packages/odoo/addons/base/views/ir_attachment_views.xml`:
+```xml
+<field name="datas" nolabel="1" class="w-100" filename="name" invisible="type == 'url'"/>
+```
+
+The `datas` field in `ir.attachment` is a Binary field, and Odoo's standard view does NOT use `widget="binary"`.
+
+#### When to Use `widget="binary"`
+
+The `widget="binary"` attribute is only needed in **list views** when you want to display binary fields in a specific way:
+
+```xml
+<!-- List view - widget may be needed for specific display -->
+<list>
+    <field name="datas" widget="binary" filename="name" string="File"/>
+</list>
+```
+
+However, for **form views**, omit the widget attribute and let Odoo handle it automatically.
+
+#### Applies To
+
+- **Odoo 15.0+**: All modern Odoo versions
+- **Binary fields with `attachment=True`**: Standard file upload fields
+- **Form views**: Widget is automatically applied
+- **List views**: Widget may be specified for custom display behavior
+
+### One2many List View Field Loading (CRITICAL)
+
+**⚠️ Fields Referenced in Button Attributes Must Be Loaded in List View**
+
+When using buttons in one2many list views with `invisible`, `readonly`, or other attributes that reference fields, those fields **MUST be included in the list view** or they will cause data save failures and UI interference.
+
+#### ❌ Problematic Pattern (Causes Binary Field Save Failure)
+
+```xml
+<field name="version_ids">
+    <list>
+        <field name="issue_date"/>
+        <field name="expiry_date"/>
+        <field name="state"/>
+        <!-- ❌ attachment_datas NOT in list but referenced by button -->
+        <button name="action_download" type="object" string="Download"
+                icon="fa-download"
+                invisible="not attachment_datas"/>  <!-- ❌ Field not loaded! -->
+    </list>
+</field>
+```
+
+**Symptoms:**
+- Binary fields fail to save when editing records through popup forms
+- Only text fields are saved, binary data is lost
+- Logs show binary field missing from `write()` vals despite being uploaded in UI
+- Extra RPC calls or field loading issues during invisible evaluation
+- Interference with form opening/saving process
+
+#### ✅ Correct Pattern (Field Loaded but Hidden)
+
+```xml
+<field name="version_ids">
+    <list>
+        <field name="issue_date"/>
+        <field name="expiry_date"/>
+        <field name="attachment_datas" column_invisible="1"/>  <!-- ✅ REQUIRED -->
+        <field name="state"/>
+        <button name="action_download" type="object" string="Download"
+                icon="fa-download"
+                invisible="not attachment_datas"/>  <!-- ✅ Field is loaded -->
+    </list>
+</field>
+```
+
+**Key Points:**
+- Use `column_invisible="1"` to hide the field from display while keeping it loaded
+- This ensures the field is available for attribute evaluation
+- Prevents interference with form dialog opening and saving
+- Binary fields will save correctly when editing through popup forms
+
+#### Applies To
+
+- **Odoo 15.0+**: All modern Odoo versions
+- **All field types**: Binary, Many2one, Boolean, Char, etc.
+- **All attributes**: `invisible`, `readonly`, `required`, `attrs`
+- **All button types**: `type="object"`, `type="action"`
+
+#### Technical Explanation
+
+When a button's attribute references a field (e.g., `invisible="not attachment_datas"`):
+1. Odoo needs to evaluate that field's value to determine button visibility
+2. If the field is not in the list view, Odoo attempts to load it dynamically
+3. This dynamic loading can interfere with form dialog operations
+4. Binary field uploads in popup forms fail to save because the field loading mechanism conflicts with the save process
+5. The `write()` operation receives incomplete `vals` dictionary missing the binary field data
+
+#### Related Issues
+
+- Binary fields not saving in one2many popup forms
+- Button visibility not updating correctly
+- "Field not found" errors in browser console
+- Unexpected RPC calls when opening records
+- Form dialog save operations failing silently
+
 ### Chatter Implementation
 
 - **Odoo 15.0**: Use the traditional `<div class="oe_chatter">` structure with individual field widgets
