@@ -115,7 +115,17 @@ if [[ ${#FOUND_DIRS[@]} -eq 0 ]]; then
         exit 0
     fi
 else
-    echo -e "${GREEN}✓ Found ${#FOUND_DIRS[@]} project(s) with old configuration:${NC}"
+    # Check if current directory is in the list
+    CURRENT_IN_LIST=false
+    for dir in "${FOUND_DIRS[@]}"; do
+        if [[ "$dir" == "$CURRENT_DIR" ]]; then
+            CURRENT_IN_LIST=true
+            break
+        fi
+    done
+
+    # Build menu with found projects + special options
+    echo -e "${BLUE}Select projects to migrate:${NC}"
     echo ""
 
     # Display found directories
@@ -127,71 +137,64 @@ else
     echo -e "${CYAN}Legend: 📋 = .augment-guidelines  ⚙️ = env-reference.json${NC}"
     echo ""
 
-    # Check if current directory is in the list
-    CURRENT_IN_LIST=false
-    for dir in "${FOUND_DIRS[@]}"; do
-        if [[ "$dir" == "$CURRENT_DIR" ]]; then
-            CURRENT_IN_LIST=true
-            break
-        fi
-    done
-
-    # Show migration options
-    echo -e "${BLUE}Migration options:${NC}"
+    # Add special options after the project list
+    NEXT_NUM=$((${#FOUND_DIRS[@]} + 1))
 
     if [[ "$CURRENT_IN_LIST" == true ]]; then
-        echo -e "  ${YELLOW}[1]${NC} Migrate current directory only ($(basename "$CURRENT_DIR"))"
+        OPTION_CURRENT=$NEXT_NUM
+        echo -e "  ${YELLOW}[$OPTION_CURRENT]${NC} Migrate current directory only ($(basename "$CURRENT_DIR"))"
+        NEXT_NUM=$((NEXT_NUM + 1))
     fi
 
-    echo -e "  ${YELLOW}[2]${NC} Select which projects to migrate"
-    echo -e "  ${YELLOW}[3]${NC} Migrate all found projects"
-    echo -e "  ${YELLOW}[0]${NC} Cancel"
+    OPTION_ALL=$NEXT_NUM
+    echo -e "  ${YELLOW}[$OPTION_ALL]${NC} Migrate all found projects"
+
+    OPTION_CANCEL=$((NEXT_NUM + 1))
+    echo -e "  ${YELLOW}[$OPTION_CANCEL]${NC} Cancel"
     echo ""
 
-    read -p "Choose option: " -r OPTION
+    echo -e "${CYAN}Enter project numbers (space-separated, e.g., 1 3) or option number:${NC}"
+    read -p "Selection: " -r SELECTION
 
-    case "$OPTION" in
-        1)
-            if [[ "$CURRENT_IN_LIST" == true ]]; then
-                DIRS_TO_MIGRATE=("$CURRENT_DIR")
-            else
-                echo -e "${RED}✗ Current directory not in list${NC}"
-                exit 1
-            fi
-            ;;
-        2)
-            # Select specific directories
-            echo ""
-            echo -e "${BLUE}Select projects to migrate (space-separated numbers, e.g., 1 3 5):${NC}"
-            read -p "Enter numbers: " -r SELECTION
+    # Parse selection
+    DIRS_TO_MIGRATE=()
 
-            DIRS_TO_MIGRATE=()
-            for num in $SELECTION; do
-                index=$((num-1))
-                if [[ $index -ge 0 ]] && [[ $index -lt ${#FOUND_DIRS[@]} ]]; then
-                    DIRS_TO_MIGRATE+=("${FOUND_DIRS[$index]}")
-                else
-                    echo -e "${YELLOW}⚠️  Invalid number: $num (skipped)${NC}"
-                fi
-            done
+    # Check if it's a single special option
+    if [[ "$SELECTION" =~ ^[0-9]+$ ]]; then
+        # Single number - could be project or special option
+        num=$SELECTION
 
-            if [[ ${#DIRS_TO_MIGRATE[@]} -eq 0 ]]; then
-                echo -e "${RED}✗ No valid directories selected${NC}"
-                exit 1
-            fi
-            ;;
-        3)
-            DIRS_TO_MIGRATE=("${FOUND_DIRS[@]}")
-            ;;
-        0)
+        if [[ $num -eq $OPTION_CANCEL ]]; then
             echo -e "${YELLOW}Migration cancelled${NC}"
             exit 0
-            ;;
-        *)
-            echo -e "${RED}✗ Invalid option${NC}"
+        elif [[ $num -eq $OPTION_ALL ]]; then
+            DIRS_TO_MIGRATE=("${FOUND_DIRS[@]}")
+        elif [[ "$CURRENT_IN_LIST" == true ]] && [[ $num -eq $OPTION_CURRENT ]]; then
+            DIRS_TO_MIGRATE=("$CURRENT_DIR")
+        elif [[ $num -ge 1 ]] && [[ $num -le ${#FOUND_DIRS[@]} ]]; then
+            # It's a project number
+            index=$((num-1))
+            DIRS_TO_MIGRATE=("${FOUND_DIRS[$index]}")
+        else
+            echo -e "${RED}✗ Invalid selection: $num${NC}"
             exit 1
-            ;;
-    esac
+        fi
+    else
+        # Multiple numbers - must be project selections
+        for num in $SELECTION; do
+            if [[ $num -ge 1 ]] && [[ $num -le ${#FOUND_DIRS[@]} ]]; then
+                index=$((num-1))
+                DIRS_TO_MIGRATE+=("${FOUND_DIRS[$index]}")
+            else
+                echo -e "${YELLOW}⚠️  Invalid number: $num (skipped)${NC}"
+            fi
+        done
+
+        if [[ ${#DIRS_TO_MIGRATE[@]} -eq 0 ]]; then
+            echo -e "${RED}✗ No valid directories selected${NC}"
+            exit 1
+        fi
+    fi
 fi
 
 echo ""
