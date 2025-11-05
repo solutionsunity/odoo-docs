@@ -1,0 +1,21 @@
+{
+  "developer": {
+    "name": "YOUR_NAME",
+    "email": "YOUR_EMAIL@company.com",
+    "company": "YOUR_COMPANY_NAME",
+    "website": "https://yourcompany.com"
+  },
+  "odoo": {
+    "version": "18.0",
+    "core_path": "/usr/lib/python3/dist-packages/odoo",
+    "config_file": "/etc/odoo/odoo.conf",
+    "user": "odoo"
+  },
+  "branding": {
+    "author": "AUTHOR_NAME",
+    "website": "https://company.com",
+    "module_icon": "docs/module_icon.png",
+    "default_license": "LGPL-3",
+    "default_version": "18.0.1.0.0"
+  }
+}

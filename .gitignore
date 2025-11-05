@@ -1,4 +1,5 @@
-# Private configurations (root-relative paths only)
+# User-specific Augment configuration (created from templates/)
+/.augment/
 /.augment-guidelines
 /env-reference.json
 
