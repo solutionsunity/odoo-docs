@@ -329,9 +329,18 @@ migrate_directory() {
         if grep -qE "^(\.augment/|/\.augment/|\.augment\*|/\.augment\*)$" "$GITIGNORE_FILE" 2>/dev/null; then
             echo -e "${GREEN}✓${NC} .augment/ already covered in .gitignore"
         else
-            # Add .augment/ to .gitignore
-            echo "/.augment/" >> "$GITIGNORE_FILE"
-            echo -e "${GREEN}✓${NC} Added /.augment/ to .gitignore"
+            # Find line number of .augment-guidelines to insert after it
+            LINE_NUM=$(grep -n "^/.augment-guidelines$" "$GITIGNORE_FILE" | cut -d: -f1)
+
+            if [[ -n "$LINE_NUM" ]]; then
+                # Insert /.augment/ after .augment-guidelines line
+                sed -i "${LINE_NUM}a/.augment/" "$GITIGNORE_FILE"
+                echo -e "${GREEN}✓${NC} Added /.augment/ after /.augment-guidelines"
+            else
+                # No .augment-guidelines found, append at end
+                echo "/.augment/" >> "$GITIGNORE_FILE"
+                echo -e "${GREEN}✓${NC} Added /.augment/ to .gitignore"
+            fi
         fi
     else
         # Create .gitignore with .augment/
