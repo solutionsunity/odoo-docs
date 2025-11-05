@@ -277,13 +277,14 @@ migrate_directory() {
 
     OLD_FILES_FOUND=false
 
-    if [[ -f "$TARGET_DIR/.augment-guidelines" ]]; then
-        echo -e "${YELLOW}⚠️${NC}  Found old .augment-guidelines file"
+    # Check for files or symlinks (even broken ones)
+    if [[ -e "$TARGET_DIR/.augment-guidelines" ]] || [[ -L "$TARGET_DIR/.augment-guidelines" ]]; then
+        echo -e "${YELLOW}⚠️${NC}  Found old .augment-guidelines"
         OLD_FILES_FOUND=true
     fi
 
-    if [[ -f "$TARGET_DIR/env-reference.json" ]]; then
-        echo -e "${YELLOW}⚠️${NC}  Found old env-reference.json file at root"
+    if [[ -e "$TARGET_DIR/env-reference.json" ]] || [[ -L "$TARGET_DIR/env-reference.json" ]]; then
+        echo -e "${YELLOW}⚠️${NC}  Found old env-reference.json at root"
         OLD_FILES_FOUND=true
     fi
 
@@ -291,16 +292,24 @@ migrate_directory() {
     if [[ "$OLD_FILES_FOUND" == true ]]; then
         echo ""
         echo -e "${YELLOW}Old configuration files detected:${NC}"
-        [[ -f "$TARGET_DIR/.augment-guidelines" ]] && echo -e "  • .augment-guidelines"
-        [[ -f "$TARGET_DIR/env-reference.json" ]] && echo -e "  • env-reference.json"
+        if [[ -e "$TARGET_DIR/.augment-guidelines" ]] || [[ -L "$TARGET_DIR/.augment-guidelines" ]]; then
+            echo -e "  • .augment-guidelines"
+        fi
+        if [[ -e "$TARGET_DIR/env-reference.json" ]] || [[ -L "$TARGET_DIR/env-reference.json" ]]; then
+            echo -e "  • env-reference.json"
+        fi
         echo ""
         echo -e "${BLUE}These files are no longer needed with the new .augment/ structure.${NC}"
         read -p "Delete old configuration files? (y/N): " -n 1 -r
         echo
 
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            [[ -f "$TARGET_DIR/.augment-guidelines" ]] && rm "$TARGET_DIR/.augment-guidelines" && echo -e "${GREEN}✓${NC} Deleted .augment-guidelines"
-            [[ -f "$TARGET_DIR/env-reference.json" ]] && rm "$TARGET_DIR/env-reference.json" && echo -e "${GREEN}✓${NC} Deleted env-reference.json"
+            if [[ -e "$TARGET_DIR/.augment-guidelines" ]] || [[ -L "$TARGET_DIR/.augment-guidelines" ]]; then
+                rm "$TARGET_DIR/.augment-guidelines" && echo -e "${GREEN}✓${NC} Deleted .augment-guidelines"
+            fi
+            if [[ -e "$TARGET_DIR/env-reference.json" ]] || [[ -L "$TARGET_DIR/env-reference.json" ]]; then
+                rm "$TARGET_DIR/env-reference.json" && echo -e "${GREEN}✓${NC} Deleted env-reference.json"
+            fi
         else
             echo -e "${YELLOW}⚠️${NC}  Old files kept - you can delete them manually later"
         fi
