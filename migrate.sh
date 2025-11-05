@@ -26,6 +26,16 @@ echo -e "${BLUE}║  Augment Configuration Migration      ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
 echo ""
 
+# Update documentation first to get latest templates
+echo -e "${CYAN}📥 Updating odoo-docs to get latest templates...${NC}"
+if [[ -x "$SOURCE_DIR/docs/sync.sh" ]]; then
+    cd "$SOURCE_DIR" && ./docs/sync.sh
+    echo -e "${GREEN}✓${NC} Documentation updated"
+else
+    echo -e "${YELLOW}⚠️${NC}  Could not find docs/sync.sh, using existing templates"
+fi
+echo ""
+
 # Function to check if directory has old configuration
 has_old_config() {
     local dir="$1"
