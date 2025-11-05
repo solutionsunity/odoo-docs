@@ -11,6 +11,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Source directory (where this script is located)
@@ -18,117 +19,315 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="$SCRIPT_DIR"
 
 # Target directory (where the user is calling from)
-TARGET_DIR="$(pwd)"
+CURRENT_DIR="$(pwd)"
 
-echo -e "${BLUE}Augment Configuration Migration${NC}"
-echo -e "${BLUE}===============================${NC}"
-echo ""
-echo -e "Source directory: ${YELLOW}$SOURCE_DIR${NC}"
-echo -e "Target directory: ${YELLOW}$TARGET_DIR${NC}"
+echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║  Augment Configuration Migration      ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
 echo ""
 
-# Check if we're in the source directory
-if [[ "$TARGET_DIR" == "$SOURCE_DIR" ]]; then
-    echo -e "${RED}✗ Error: Cannot migrate in the source directory itself${NC}"
-    echo -e "  Please run this script from your project repository directory"
-    exit 1
-fi
+# Function to check if directory has old configuration
+has_old_config() {
+    local dir="$1"
+    [[ -f "$dir/.augment-guidelines" ]] || [[ -f "$dir/env-reference.json" ]]
+}
 
-# Check if .augment already exists
-if [[ -e "$TARGET_DIR/.augment" ]]; then
-    echo -e "${YELLOW}⚠️  .augment/ directory already exists${NC}"
-    read -p "   Overwrite existing .augment/ directory? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}Migration aborted${NC}"
+# Function to scan for directories with old configuration
+scan_odoo_directories() {
+    local dirs=()
+
+    echo -e "${CYAN}🔍 Scanning /opt/odoo/ for projects with old configuration...${NC}"
+    echo ""
+
+    # Scan /opt/odoo/* directories
+    if [[ -d "/opt/odoo" ]]; then
+        for dir in /opt/odoo/*/; do
+            # Remove trailing slash
+            dir="${dir%/}"
+
+            # Skip odoo-docs itself
+            if [[ "$dir" == "$SOURCE_DIR" ]] || [[ "$dir" == "/opt/odoo/odoo-docs" ]]; then
+                continue
+            fi
+
+            # Check if directory has old config
+            if has_old_config "$dir"; then
+                dirs+=("$dir")
+            fi
+        done
+    fi
+
+    echo "${dirs[@]}"
+}
+
+# Function to display directory info
+display_dir_info() {
+    local dir="$1"
+    local index="$2"
+    local has_guidelines=""
+    local has_env=""
+
+    [[ -f "$dir/.augment-guidelines" ]] && has_guidelines="📋"
+    [[ -f "$dir/env-reference.json" ]] && has_env="⚙️"
+
+    echo -e "  ${YELLOW}[$index]${NC} $(basename "$dir")  $has_guidelines $has_env"
+}
+
+# Scan for directories
+FOUND_DIRS=($(scan_odoo_directories))
+
+if [[ ${#FOUND_DIRS[@]} -eq 0 ]]; then
+    echo -e "${YELLOW}⚠️  No projects found with old configuration in /opt/odoo/${NC}"
+    echo ""
+
+    # Check if current directory has old config
+    if has_old_config "$CURRENT_DIR"; then
+        echo -e "${BLUE}Current directory has old configuration.${NC}"
+        read -p "Migrate current directory? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}Migration cancelled${NC}"
+            exit 0
+        fi
+        DIRS_TO_MIGRATE=("$CURRENT_DIR")
+    else
+        echo -e "${GREEN}✓ No migration needed${NC}"
         exit 0
     fi
-    rm -rf "$TARGET_DIR/.augment"
-fi
-
-# Copy templates to create .augment directory
-echo -e "${BLUE}Step 1: Creating .augment/ directory from templates${NC}"
-if [[ ! -e "$SOURCE_DIR/templates/.augment" ]]; then
-    echo -e "${RED}✗ Error: Template directory not found at $SOURCE_DIR/templates/.augment${NC}"
-    exit 1
-fi
-
-cp -r "$SOURCE_DIR/templates/.augment" "$TARGET_DIR/.augment"
-echo -e "${GREEN}✓${NC} Created .augment/ directory structure"
-
-# Handle env-reference.json migration
-echo ""
-echo -e "${BLUE}Step 2: Migrating environment configuration${NC}"
-
-# Check if user has existing env-reference.json at root
-if [[ -f "$TARGET_DIR/env-reference.json" ]]; then
-    echo -e "${GREEN}✓${NC} Found existing env-reference.json at root"
-    
-    # Copy user's existing config to new location
-    cp "$TARGET_DIR/env-reference.json" "$TARGET_DIR/.augment/config/env-reference.json"
-    echo -e "${GREEN}✓${NC} Migrated env-reference.json to .augment/config/"
-    
-    # Remove template file if it exists
-    if [[ -f "$TARGET_DIR/.augment/config/env-reference.json.template" ]]; then
-        rm "$TARGET_DIR/.augment/config/env-reference.json.template"
-    fi
 else
-    # No existing config, use template
-    if [[ -f "$TARGET_DIR/.augment/config/env-reference.json.template" ]]; then
-        mv "$TARGET_DIR/.augment/config/env-reference.json.template" "$TARGET_DIR/.augment/config/env-reference.json"
-        echo -e "${YELLOW}⚠️${NC}  No existing env-reference.json found"
-        echo -e "   Created from template - ${YELLOW}please update with your information${NC}"
+    echo -e "${GREEN}✓ Found ${#FOUND_DIRS[@]} project(s) with old configuration:${NC}"
+    echo ""
+
+    # Display found directories
+    for i in "${!FOUND_DIRS[@]}"; do
+        display_dir_info "${FOUND_DIRS[$i]}" "$((i+1))"
+    done
+
+    echo ""
+    echo -e "${CYAN}Legend: 📋 = .augment-guidelines  ⚙️ = env-reference.json${NC}"
+    echo ""
+
+    # Check if current directory is in the list
+    CURRENT_IN_LIST=false
+    for dir in "${FOUND_DIRS[@]}"; do
+        if [[ "$dir" == "$CURRENT_DIR" ]]; then
+            CURRENT_IN_LIST=true
+            break
+        fi
+    done
+
+    # Show migration options
+    echo -e "${BLUE}Migration options:${NC}"
+
+    if [[ "$CURRENT_IN_LIST" == true ]]; then
+        echo -e "  ${YELLOW}[1]${NC} Migrate current directory only ($(basename "$CURRENT_DIR"))"
     fi
+
+    echo -e "  ${YELLOW}[2]${NC} Select which projects to migrate"
+    echo -e "  ${YELLOW}[3]${NC} Migrate all found projects"
+    echo -e "  ${YELLOW}[0]${NC} Cancel"
+    echo ""
+
+    read -p "Choose option: " -r OPTION
+
+    case "$OPTION" in
+        1)
+            if [[ "$CURRENT_IN_LIST" == true ]]; then
+                DIRS_TO_MIGRATE=("$CURRENT_DIR")
+            else
+                echo -e "${RED}✗ Current directory not in list${NC}"
+                exit 1
+            fi
+            ;;
+        2)
+            # Select specific directories
+            echo ""
+            echo -e "${BLUE}Select projects to migrate (space-separated numbers, e.g., 1 3 5):${NC}"
+            read -p "Enter numbers: " -r SELECTION
+
+            DIRS_TO_MIGRATE=()
+            for num in $SELECTION; do
+                index=$((num-1))
+                if [[ $index -ge 0 ]] && [[ $index -lt ${#FOUND_DIRS[@]} ]]; then
+                    DIRS_TO_MIGRATE+=("${FOUND_DIRS[$index]}")
+                else
+                    echo -e "${YELLOW}⚠️  Invalid number: $num (skipped)${NC}"
+                fi
+            done
+
+            if [[ ${#DIRS_TO_MIGRATE[@]} -eq 0 ]]; then
+                echo -e "${RED}✗ No valid directories selected${NC}"
+                exit 1
+            fi
+            ;;
+        3)
+            DIRS_TO_MIGRATE=("${FOUND_DIRS[@]}")
+            ;;
+        0)
+            echo -e "${YELLOW}Migration cancelled${NC}"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}✗ Invalid option${NC}"
+            exit 1
+            ;;
+    esac
 fi
 
-# Check for old .augment-guidelines
 echo ""
-echo -e "${BLUE}Step 3: Checking for old configuration files${NC}"
+echo -e "${BLUE}═══════════════════════════════════════${NC}"
+echo -e "${GREEN}Will migrate ${#DIRS_TO_MIGRATE[@]} project(s):${NC}"
+for dir in "${DIRS_TO_MIGRATE[@]}"; do
+    echo -e "  • $(basename "$dir")"
+done
+echo -e "${BLUE}═══════════════════════════════════════${NC}"
+echo ""
 
-OLD_FILES_FOUND=false
-
-if [[ -f "$TARGET_DIR/.augment-guidelines" ]]; then
-    echo -e "${YELLOW}⚠️${NC}  Found old .augment-guidelines file"
-    OLD_FILES_FOUND=true
+read -p "Proceed with migration? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}Migration cancelled${NC}"
+    exit 0
 fi
 
-if [[ -f "$TARGET_DIR/env-reference.json" ]]; then
-    echo -e "${YELLOW}⚠️${NC}  Found old env-reference.json file at root"
-    OLD_FILES_FOUND=true
-fi
+# Function to migrate a single directory
+migrate_directory() {
+    local TARGET_DIR="$1"
+    local PROJECT_NAME=$(basename "$TARGET_DIR")
 
-# Ask user if they want to delete old files
-if [[ "$OLD_FILES_FOUND" == true ]]; then
     echo ""
-    echo -e "${YELLOW}Old configuration files detected:${NC}"
-    [[ -f "$TARGET_DIR/.augment-guidelines" ]] && echo -e "  • .augment-guidelines"
-    [[ -f "$TARGET_DIR/env-reference.json" ]] && echo -e "  • env-reference.json"
+    echo -e "${CYAN}╔════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║  Migrating: ${PROJECT_NAME}${NC}"
+    echo -e "${CYAN}╚════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${BLUE}These files are no longer needed with the new .augment/ structure.${NC}"
-    read -p "Delete old configuration files? (y/N): " -n 1 -r
-    echo
-    
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        [[ -f "$TARGET_DIR/.augment-guidelines" ]] && rm "$TARGET_DIR/.augment-guidelines" && echo -e "${GREEN}✓${NC} Deleted .augment-guidelines"
-        [[ -f "$TARGET_DIR/env-reference.json" ]] && rm "$TARGET_DIR/env-reference.json" && echo -e "${GREEN}✓${NC} Deleted env-reference.json"
+
+    # Check if .augment already exists
+    if [[ -e "$TARGET_DIR/.augment" ]]; then
+        echo -e "${YELLOW}⚠️  .augment/ directory already exists${NC}"
+        read -p "   Overwrite existing .augment/ directory? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}   Skipped $PROJECT_NAME${NC}"
+            return 1
+        fi
+        rm -rf "$TARGET_DIR/.augment"
+    fi
+
+    # Copy templates to create .augment directory
+    echo -e "${BLUE}Step 1: Creating .augment/ directory from templates${NC}"
+    if [[ ! -e "$SOURCE_DIR/templates/.augment" ]]; then
+        echo -e "${RED}✗ Error: Template directory not found at $SOURCE_DIR/templates/.augment${NC}"
+        return 1
+    fi
+
+    cp -r "$SOURCE_DIR/templates/.augment" "$TARGET_DIR/.augment"
+    echo -e "${GREEN}✓${NC} Created .augment/ directory structure"
+
+    # Handle env-reference.json migration
+    echo ""
+    echo -e "${BLUE}Step 2: Migrating environment configuration${NC}"
+
+    # Check if user has existing env-reference.json at root
+    if [[ -f "$TARGET_DIR/env-reference.json" ]]; then
+        echo -e "${GREEN}✓${NC} Found existing env-reference.json at root"
+
+        # Copy user's existing config to new location
+        cp "$TARGET_DIR/env-reference.json" "$TARGET_DIR/.augment/config/env-reference.json"
+        echo -e "${GREEN}✓${NC} Migrated env-reference.json to .augment/config/"
+
+        # Remove template file if it exists
+        if [[ -f "$TARGET_DIR/.augment/config/env-reference.json.template" ]]; then
+            rm "$TARGET_DIR/.augment/config/env-reference.json.template"
+        fi
     else
-        echo -e "${YELLOW}⚠️${NC}  Old files kept - you can delete them manually later"
+        # No existing config, use template
+        if [[ -f "$TARGET_DIR/.augment/config/env-reference.json.template" ]]; then
+            mv "$TARGET_DIR/.augment/config/env-reference.json.template" "$TARGET_DIR/.augment/config/env-reference.json"
+            echo -e "${YELLOW}⚠️${NC}  No existing env-reference.json found"
+            echo -e "   Created from template - ${YELLOW}please update with your information${NC}"
+        fi
     fi
-else
-    echo -e "${GREEN}✓${NC} No old configuration files found"
-fi
 
-# Summary
+    # Check for old .augment-guidelines
+    echo ""
+    echo -e "${BLUE}Step 3: Checking for old configuration files${NC}"
+
+    OLD_FILES_FOUND=false
+
+    if [[ -f "$TARGET_DIR/.augment-guidelines" ]]; then
+        echo -e "${YELLOW}⚠️${NC}  Found old .augment-guidelines file"
+        OLD_FILES_FOUND=true
+    fi
+
+    if [[ -f "$TARGET_DIR/env-reference.json" ]]; then
+        echo -e "${YELLOW}⚠️${NC}  Found old env-reference.json file at root"
+        OLD_FILES_FOUND=true
+    fi
+
+    # Ask user if they want to delete old files
+    if [[ "$OLD_FILES_FOUND" == true ]]; then
+        echo ""
+        echo -e "${YELLOW}Old configuration files detected:${NC}"
+        [[ -f "$TARGET_DIR/.augment-guidelines" ]] && echo -e "  • .augment-guidelines"
+        [[ -f "$TARGET_DIR/env-reference.json" ]] && echo -e "  • env-reference.json"
+        echo ""
+        echo -e "${BLUE}These files are no longer needed with the new .augment/ structure.${NC}"
+        read -p "Delete old configuration files? (y/N): " -n 1 -r
+        echo
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            [[ -f "$TARGET_DIR/.augment-guidelines" ]] && rm "$TARGET_DIR/.augment-guidelines" && echo -e "${GREEN}✓${NC} Deleted .augment-guidelines"
+            [[ -f "$TARGET_DIR/env-reference.json" ]] && rm "$TARGET_DIR/env-reference.json" && echo -e "${GREEN}✓${NC} Deleted env-reference.json"
+        else
+            echo -e "${YELLOW}⚠️${NC}  Old files kept - you can delete them manually later"
+        fi
+    else
+        echo -e "${GREEN}✓${NC} No old configuration files found"
+    fi
+
+    echo ""
+    echo -e "${GREEN}✓ Migration completed for $PROJECT_NAME!${NC}"
+
+    return 0
+}
+
+# Migrate all selected directories
 echo ""
-echo -e "${GREEN}✓ Migration completed successfully!${NC}"
+echo -e "${BLUE}Starting migration process...${NC}"
+
+MIGRATED_COUNT=0
+SKIPPED_COUNT=0
+FAILED_COUNT=0
+
+for dir in "${DIRS_TO_MIGRATE[@]}"; do
+    if migrate_directory "$dir"; then
+        ((MIGRATED_COUNT++))
+    else
+        if [[ $? -eq 1 ]]; then
+            ((SKIPPED_COUNT++))
+        else
+            ((FAILED_COUNT++))
+        fi
+    fi
+done
+
+# Final summary
 echo ""
-echo -e "${BLUE}New structure:${NC}"
+echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║  Migration Summary                     ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
+echo ""
+echo -e "${GREEN}✓ Successfully migrated: $MIGRATED_COUNT${NC}"
+[[ $SKIPPED_COUNT -gt 0 ]] && echo -e "${YELLOW}⊘ Skipped: $SKIPPED_COUNT${NC}"
+[[ $FAILED_COUNT -gt 0 ]] && echo -e "${RED}✗ Failed: $FAILED_COUNT${NC}"
+echo ""
+echo -e "${BLUE}New structure for migrated projects:${NC}"
 echo -e "  📁 ${YELLOW}./.augment/${NC}"
 echo -e "  📁 ${YELLOW}./.augment/config/env-reference.json${NC} - Developer & branding info"
 echo -e "  📁 ${YELLOW}./.augment/rules/${NC} - AI agent rules"
 echo ""
 echo -e "${BLUE}Next steps:${NC}"
-echo -e "  1. Review and update: ${YELLOW}./.augment/config/env-reference.json${NC}"
+echo -e "  1. Review and update: ${YELLOW}./.augment/config/env-reference.json${NC} in each project"
 echo -e "  2. Customize rules if needed: ${YELLOW}./.augment/rules/*.md${NC}"
 echo -e "  3. The .augment/ directory is in .gitignore (user-specific)"
 echo ""
