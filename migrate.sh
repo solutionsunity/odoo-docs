@@ -317,6 +317,28 @@ migrate_directory() {
         echo -e "${GREEN}✓${NC} No old configuration files found"
     fi
 
+    # Update .gitignore to include .augment/
+    echo ""
+    echo -e "${BLUE}Step 4: Updating .gitignore${NC}"
+
+    GITIGNORE_FILE="$TARGET_DIR/.gitignore"
+
+    if [[ -f "$GITIGNORE_FILE" ]]; then
+        # Check if .augment/ is already covered in .gitignore
+        # Check for exact matches or wildcards that would cover it
+        if grep -qE "^(\.augment/|/\.augment/|\.augment\*|/\.augment\*)$" "$GITIGNORE_FILE" 2>/dev/null; then
+            echo -e "${GREEN}✓${NC} .augment/ already covered in .gitignore"
+        else
+            # Add .augment/ to .gitignore
+            echo "/.augment/" >> "$GITIGNORE_FILE"
+            echo -e "${GREEN}✓${NC} Added /.augment/ to .gitignore"
+        fi
+    else
+        # Create .gitignore with .augment/
+        echo "/.augment/" > "$GITIGNORE_FILE"
+        echo -e "${GREEN}✓${NC} Created .gitignore with /.augment/"
+    fi
+
     echo ""
     echo -e "${GREEN}✓ Migration completed for $PROJECT_NAME!${NC}"
 
