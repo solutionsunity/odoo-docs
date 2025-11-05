@@ -199,6 +199,103 @@ def _search_is_expiring_soon(self, operator, value):
 - Searchable in domains and XML filters
 - Follows Odoo standard patterns
 
+## Time-Based Computed Fields (CRITICAL)
+
+**⚠️ NEVER store computed fields that depend on current date/time!**
+
+### The Problem
+
+Time-based computed fields that compare with `date.today()`, `datetime.now()`, or similar time functions should **NEVER** be stored. They only recompute when their declared dependencies change, not when the date/time changes.
+
+```python
+# ❌ WRONG - Stored time-based field
+license_status = fields.Selection([
+    ('valid', 'Valid'),
+    ('expired', 'Expired'),
+], compute='_compute_license_status',
+   store=True)  # ❌ WRONG! Will become stale
+
+@api.depends('license_expiry_date')
+def _compute_license_status(self):
+    """This only runs when license_expiry_date changes!"""
+    for record in self:
+        today = date.today()  # This changes every day!
+        if record.license_expiry_date < today:
+            record.license_status = 'expired'
+        else:
+            record.license_status = 'valid'
+```
+
+**Issue:** A license that's "valid" today won't automatically become "expired" tomorrow because the field only recomputes when `license_expiry_date` changes, not when the date changes. Days and nights happen outside Odoo - there's no trigger to recompute!
+
+### ✅ Correct Implementation
+
+```python
+# ✅ CORRECT - Not stored, recomputes on every access
+license_status = fields.Selection([
+    ('valid', 'Valid'),
+    ('expired', 'Expired'),
+], compute='_compute_license_status')  # No store=True!
+
+@api.depends('license_expiry_date')
+def _compute_license_status(self):
+    """Computes fresh on every access"""
+    for record in self:
+        today = date.today()
+        if record.license_expiry_date < today:
+            record.license_status = 'expired'
+        else:
+            record.license_status = 'valid'
+```
+
+### Common Time-Based Fields (Never Store)
+
+- **License/Certificate status** (valid/expired based on expiry date)
+- **Days until expiry** (calculated from today)
+- **Age calculations** (years/months from birth date)
+- **Overdue status** (based on due date vs today)
+- **Time remaining** (deadline - now)
+- **Business hours status** (open/closed based on current time)
+- **Seasonal flags** (based on current month/season)
+
+### If You Need to Search Time-Based Fields
+
+Use the `search` parameter to enable searching without storing:
+
+```python
+is_expired = fields.Boolean(
+    compute='_compute_is_expired',
+    search='_search_is_expired'  # Enable search without storing
+)
+
+@api.model
+def _search_is_expired(self, operator, value):
+    """Search for expired records"""
+    today = date.today()
+    if (operator == '=' and value) or (operator == '!=' and not value):
+        return [('expiry_date', '<', today)]
+    else:
+        return [('expiry_date', '>=', today)]
+```
+
+### Performance Considerations
+
+**Q: Won't non-stored fields be slow?**
+
+**A:** Not significantly. Time-based computations are typically very fast (simple date comparisons). The benefit of always-correct data far outweighs the minimal performance cost.
+
+**Q: What if I have thousands of records?**
+
+**A:** Use proper indexing on the dependency fields (e.g., `expiry_date`) and implement efficient search methods. Odoo's ORM is optimized for this pattern.
+
+### Summary
+
+- ✅ **DO**: Leave time-based computed fields non-stored
+- ✅ **DO**: Implement search methods if filtering is needed
+- ✅ **DO**: Use proper indexing on dependency fields
+- ❌ **DON'T**: Store fields that compare with `date.today()` or `datetime.now()`
+- ❌ **DON'T**: Assume stored fields will update automatically over time
+
 ## Error Handling and Validation
 
 - Error messages should be clear and specific about the exact problem encountered
