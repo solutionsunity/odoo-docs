@@ -227,7 +227,7 @@ migrate_directory() {
     # Check if .augment already exists
     if [[ -e "$TARGET_DIR/.augment" ]]; then
         echo -e "${YELLOW}⚠️  .augment/ directory already exists${NC}"
-        read -p "   Overwrite existing .augment/ directory? (y/N): " -n 1 -r
+        read -p "   Overwrite existing .augment/ directory? (y/N): " -n 1 -r </dev/tty
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             echo -e "${YELLOW}   Skipped $PROJECT_NAME${NC}"
@@ -300,7 +300,7 @@ migrate_directory() {
         fi
         echo ""
         echo -e "${BLUE}These files are no longer needed with the new .augment/ structure.${NC}"
-        read -p "Delete old configuration files? (y/N): " -n 1 -r
+        read -p "Delete old configuration files? (y/N): " -n 1 -r </dev/tty
         echo
 
         if [[ $REPLY =~ ^[Yy]$ ]]; then
