@@ -263,11 +263,11 @@ migrate_directory() {
     echo ""
     echo -e "${BLUE}Step 2: Migrating environment configuration${NC}"
 
-    # Check if user has existing env-reference.json at root
-    if [[ -f "$TARGET_DIR/env-reference.json" ]]; then
+    # Check if user has existing env-reference.json at root (file or symlink)
+    if [[ -e "$TARGET_DIR/env-reference.json" ]] || [[ -L "$TARGET_DIR/env-reference.json" ]]; then
         echo -e "${GREEN}✓${NC} Found existing env-reference.json at root"
 
-        # Copy user's existing config to new location
+        # Copy user's existing config to new location (cp follows symlinks)
         cp "$TARGET_DIR/env-reference.json" "$TARGET_DIR/.augment/config/env-reference.json"
         echo -e "${GREEN}✓${NC} Migrated env-reference.json to .augment/config/"
 
