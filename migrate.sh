@@ -36,9 +36,6 @@ has_old_config() {
 scan_odoo_directories() {
     local dirs=()
 
-    echo -e "${CYAN}🔍 Scanning /opt/odoo/ for projects with old configuration...${NC}"
-    echo ""
-
     # Scan /opt/odoo/* directories
     if [[ -d "/opt/odoo" ]]; then
         for dir in /opt/odoo/*/; do
@@ -57,7 +54,8 @@ scan_odoo_directories() {
         done
     fi
 
-    echo "${dirs[@]}"
+    # Return array elements separated by newline (for proper array reconstruction)
+    printf '%s\n' "${dirs[@]}"
 }
 
 # Function to display directory info
@@ -74,7 +72,10 @@ display_dir_info() {
 }
 
 # Scan for directories
-FOUND_DIRS=($(scan_odoo_directories))
+echo -e "${CYAN}🔍 Scanning /opt/odoo/ for projects with old configuration...${NC}"
+echo ""
+
+mapfile -t FOUND_DIRS < <(scan_odoo_directories)
 
 if [[ ${#FOUND_DIRS[@]} -eq 0 ]]; then
     echo -e "${YELLOW}⚠️  No projects found with old configuration in /opt/odoo/${NC}"
