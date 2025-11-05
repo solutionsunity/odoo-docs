@@ -54,8 +54,10 @@ scan_odoo_directories() {
         done
     fi
 
-    # Return array elements separated by newline (for proper array reconstruction)
-    printf '%s\n' "${dirs[@]}"
+    # Return array elements separated by newline (only if array is not empty)
+    if [[ ${#dirs[@]} -gt 0 ]]; then
+        printf '%s\n' "${dirs[@]}"
+    fi
 }
 
 # Function to display directory info
