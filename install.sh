@@ -25,19 +25,19 @@ fi
 cd "$PROJECT_PATH"
 
 # Copy templates to create private configurations
-echo "📋 Setting up private configurations..."
-if [ ! -f ".augment-guidelines" ]; then
-    cp "$DOCS_PATH/templates/.augment-guidelines.template" ".augment-guidelines"
-    echo "✅ Created .augment-guidelines from template"
+echo "📋 Setting up Augment configuration..."
+if [ ! -d ".augment" ]; then
+    cp -r "$DOCS_PATH/templates/.augment" ".augment"
+    # Rename template file to actual config file
+    if [ -f ".augment/config/env-reference.json.template" ]; then
+        mv ".augment/config/env-reference.json.template" ".augment/config/env-reference.json"
+    fi
+    echo "✅ Created .augment/ directory from templates"
+    echo "   📁 .augment/config/env-reference.json - Update with your info"
+    echo "   📁 .augment/rules/*.md - Augment AI rules"
 else
-    echo "⚠️  .augment-guidelines already exists, skipping"
-fi
-
-if [ ! -f "env-reference.json" ]; then
-    cp "$DOCS_PATH/templates/env-reference.json.template" "env-reference.json"
-    echo "✅ Created env-reference.json from template"
-else
-    echo "⚠️  env-reference.json already exists, skipping"
+    echo "⚠️  .augment/ directory already exists, skipping"
+    echo "   Run migrate.sh if you need to migrate from old configuration"
 fi
 
 
@@ -45,11 +45,17 @@ fi
 echo ""
 echo "🎉 Installation complete!"
 echo ""
-echo "📋 Created configuration files:"
-echo "   ./.augment-guidelines      - Your private AI config"
-echo "   ./env-reference.json       - Environment reference"
+echo "📋 Created configuration:"
+echo "   ./.augment/                - Your Augment configuration"
+echo "   ./.augment/config/         - Developer & branding info"
+echo "   ./.augment/rules/          - AI agent rules"
 echo ""
-echo "🔗 Next step: Create symlinks to documentation"
-echo "   Run: $DOCS_PATH/link.sh in your repo!"
+echo "⚙️  Next steps:"
+echo "   1. Update .augment/config/env-reference.json with your info"
+echo "   2. Run: $DOCS_PATH/link.sh to create documentation symlinks"
+echo ""
+echo "📝 Migration from old config:"
+echo "   If you have .augment-guidelines or env-reference.json at root:"
+echo "   Run: $DOCS_PATH/migrate.sh"
 echo ""
 echo "Happy AI-powered Odoo development! 🚀"

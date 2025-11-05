@@ -103,23 +103,17 @@ check_target_directory() {
 ensure_source_files() {
     echo "Ensuring source files exist..."
 
-    # Copy .augment-guidelines from template if missing
-    if [[ ! -e "$SOURCE_DIR/.augment-guidelines" ]]; then
-        if [[ -e "$SOURCE_DIR/templates/.augment-guidelines.template" ]]; then
-            cp "$SOURCE_DIR/templates/.augment-guidelines.template" "$SOURCE_DIR/.augment-guidelines"
-            echo -e "${GREEN}✓${NC} Created .augment-guidelines from template"
+    # Copy .augment directory from templates if missing
+    if [[ ! -e "$SOURCE_DIR/.augment" ]]; then
+        if [[ -e "$SOURCE_DIR/templates/.augment" ]]; then
+            cp -r "$SOURCE_DIR/templates/.augment" "$SOURCE_DIR/.augment"
+            # Rename template file to actual config file
+            if [[ -f "$SOURCE_DIR/.augment/config/env-reference.json.template" ]]; then
+                mv "$SOURCE_DIR/.augment/config/env-reference.json.template" "$SOURCE_DIR/.augment/config/env-reference.json"
+            fi
+            echo -e "${GREEN}✓${NC} Created .augment/ directory from templates"
         else
-            echo -e "${YELLOW}⚠️  Template not found: .augment-guidelines.template${NC}"
-        fi
-    fi
-
-    # Copy env-reference.json from template if missing
-    if [[ ! -e "$SOURCE_DIR/env-reference.json" ]]; then
-        if [[ -e "$SOURCE_DIR/templates/env-reference.json.template" ]]; then
-            cp "$SOURCE_DIR/templates/env-reference.json.template" "$SOURCE_DIR/env-reference.json"
-            echo -e "${GREEN}✓${NC} Created env-reference.json from template"
-        else
-            echo -e "${YELLOW}⚠️  Template not found: env-reference.json.template${NC}"
+            echo -e "${YELLOW}⚠️  Template not found: templates/.augment/${NC}"
         fi
     fi
 }
@@ -149,12 +143,8 @@ update_gitignore() {
         missing_entries+=("/docs")
     fi
 
-    if ! grep -q "^/\.augment-guidelines$" "$gitignore_file" 2>/dev/null; then
-        missing_entries+=("/.augment-guidelines")
-    fi
-
-    if ! grep -q "^/env-reference\.json$" "$gitignore_file" 2>/dev/null; then
-        missing_entries+=("/env-reference.json")
+    if ! grep -q "^/\.augment$" "$gitignore_file" 2>/dev/null; then
+        missing_entries+=("/.augment")
     fi
 
     if [[ ${#missing_entries[@]} -gt 0 ]]; then
@@ -195,8 +185,7 @@ echo "Creating symlinks..."
 
 # Create symlinks for each file/directory
 create_symlink "$SOURCE_DIR/docs" "$TARGET_DIR/docs" "Documentation directory"
-create_symlink "$SOURCE_DIR/.augment-guidelines" "$TARGET_DIR/.augment-guidelines" "Augment guidelines"
-create_symlink "$SOURCE_DIR/env-reference.json" "$TARGET_DIR/env-reference.json" "Environment reference"
+create_symlink "$SOURCE_DIR/.augment" "$TARGET_DIR/.augment" "Augment configuration"
 
 echo ""
 update_gitignore
@@ -206,10 +195,12 @@ echo -e "${GREEN}✓ Linking process completed!${NC}"
 echo ""
 echo -e "${BLUE}Available resources:${NC}"
 echo -e "  📁 ${YELLOW}./docs/${NC} - Documentation and standards"
-echo -e "  📄 ${YELLOW}./.augment-guidelines${NC} - AI assistant guidelines"
-echo -e "  📄 ${YELLOW}./env-reference.json${NC} - Environment reference"
+echo -e "  📁 ${YELLOW}./.augment/${NC} - Augment AI configuration"
+echo -e "  📄 ${YELLOW}./.augment/config/env-reference.json${NC} - Developer & branding info"
+echo -e "  📁 ${YELLOW}./.augment/rules/${NC} - AI agent rules"
 echo ""
 echo -e "${BLUE}Quick start:${NC}"
 echo -e "  • Sync latest docs: ${YELLOW}./docs/sync.sh${NC}"
 echo -e "  • Read coding standards: ${YELLOW}./docs/code_standard.md${NC}"
 echo -e "  • Read git workflow: ${YELLOW}./docs/git.md${NC}"
+echo -e "  • Update your info: ${YELLOW}./.augment/config/env-reference.json${NC}"
