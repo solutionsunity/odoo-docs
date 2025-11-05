@@ -29,7 +29,9 @@ echo ""
 # Function to check if directory has old configuration
 has_old_config() {
     local dir="$1"
-    [[ -f "$dir/.augment-guidelines" ]] || [[ -f "$dir/env-reference.json" ]]
+    # Check for files or symlinks (even broken ones)
+    [[ -e "$dir/.augment-guidelines" ]] || [[ -L "$dir/.augment-guidelines" ]] || \
+    [[ -e "$dir/env-reference.json" ]] || [[ -L "$dir/env-reference.json" ]]
 }
 
 # Function to scan for directories with old configuration
@@ -67,8 +69,13 @@ display_dir_info() {
     local has_guidelines=""
     local has_env=""
 
-    [[ -f "$dir/.augment-guidelines" ]] && has_guidelines="📋"
-    [[ -f "$dir/env-reference.json" ]] && has_env="⚙️"
+    # Check for files or symlinks (even broken ones)
+    if [[ -e "$dir/.augment-guidelines" ]] || [[ -L "$dir/.augment-guidelines" ]]; then
+        has_guidelines="📋"
+    fi
+    if [[ -e "$dir/env-reference.json" ]] || [[ -L "$dir/env-reference.json" ]]; then
+        has_env="⚙️"
+    fi
 
     echo -e "  ${YELLOW}[$index]${NC} $(basename "$dir")  $has_guidelines $has_env"
 }
