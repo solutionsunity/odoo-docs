@@ -446,7 +446,7 @@ def portal_my_application(self, application_id=None, **kw):
     """Display application details - independent of membership status"""
     try:
         if application_id:
-            application = request.env['membership.application'].browse(application_id)
+            application = request.env['membership.application'].browse([application_id])
             # Verify ownership
             if not application.exists() or application.user_id.id != request.env.user.id:
                 return request.redirect('/my/applications')
@@ -1651,11 +1651,21 @@ class YourModulePortal(CustomerPortal):
 
 ### 2. Access Control Patterns
 
-Implement proper access control for portal records:
+#### ⚠️ **CRITICAL: `_document_check_access` Override Pattern**
 
+**DANGER**: Overriding `_document_check_access` without model-specific checks will break ALL portal document access, including sale orders, invoices, and other core Odoo models!
+
+**The Problem:**
+When you override `_document_check_access` in a `CustomerPortal` subclass, it applies to **ALL models** accessed through that controller, not just your custom models. Many Odoo models have a `user_id` field that means different things:
+- `sale.order.user_id` = **Salesperson** (internal user)
+- `account.move.user_id` = **Responsible user** (internal user)
+- `project.task.user_id` = **Assigned user**
+- Your custom model's `user_id` = **Portal user/owner**
+
+**❌ WRONG - Breaks All Portal Access:**
 ```python
 def _document_check_access(self, model_name, document_id, access_token=None):
-    """Check access rights for portal documents"""
+    """DANGEROUS: This breaks sale orders, invoices, and other core models!"""
     document = request.env[model_name].browse([document_id])
     document_sudo = document.sudo()
 
@@ -1669,13 +1679,120 @@ def _document_check_access(self, model_name, document_id, access_token=None):
         else:
             raise
 
-    # Additional custom access checks
-    if hasattr(document_sudo, 'partner_id'):
-        if document_sudo.partner_id != request.env.user.partner_id:
+    # ❌ CRITICAL BUG: This breaks sale orders and other core models!
+    # sale.order.user_id is the SALESPERSON, not the customer!
+    if hasattr(document_sudo, 'user_id'):
+        if document_sudo.user_id.id != request.env.user.id:
             raise AccessError(_("You don't have access to this document."))
 
     return document_sudo
 ```
+
+**Why This Breaks:**
+1. User clicks "Preview" on sale order → Opens `/my/orders/123?access_token=...`
+2. Your override checks `sale_order.user_id` (salesperson) != portal user
+3. Access denied → Redirects to `/my`
+4. **Result**: Portal users cannot view their own orders!
+
+**✅ CORRECT - Model-Specific Access Checks:**
+```python
+def _document_check_access(self, model_name, document_id, access_token=None):
+    """
+    Check access rights for portal documents.
+
+    IMPORTANT: Only apply custom ownership checks to YOUR models.
+    Let parent class handle core Odoo models (sale.order, account.move, etc.)
+    """
+    document = request.env[model_name].browse([document_id])
+    document_sudo = document.sudo()
+
+    try:
+        document.check_access_rights('read')
+        document.check_access_rule('read')
+    except AccessError:
+        if access_token and document_sudo.access_token and \
+           consteq(document_sudo.access_token, access_token):
+            return document_sudo
+        else:
+            raise
+
+    # ✅ CORRECT: Only check user_id ownership for YOUR specific models
+    # List all models where user_id represents the portal user/owner
+    if model_name in ['your.custom.model', 'your.application', 'your.membership']:
+        if hasattr(document_sudo, 'user_id') and document_sudo.user_id.id != request.env.user.id:
+            raise AccessError(_("You don't have access to this document."))
+
+    return document_sudo
+```
+
+**✅ BETTER - Use partner_id for Core Model Compatibility:**
+```python
+def _document_check_access(self, model_name, document_id, access_token=None):
+    """
+    Check access rights for portal documents.
+
+    Use partner_id for ownership checks - it's consistent across Odoo models.
+    """
+    document = request.env[model_name].browse([document_id])
+    document_sudo = document.sudo()
+
+    try:
+        document.check_access_rights('read')
+        document.check_access_rule('read')
+    except AccessError:
+        if access_token and document_sudo.access_token and \
+           consteq(document_sudo.access_token, access_token):
+            return document_sudo
+        else:
+            raise
+
+    # ✅ BEST: Use partner_id which is consistent across models
+    # Only check for YOUR specific models
+    if model_name in ['your.custom.model', 'your.application']:
+        if hasattr(document_sudo, 'partner_id'):
+            if document_sudo.partner_id != request.env.user.partner_id:
+                raise AccessError(_("You don't have access to this document."))
+
+    return document_sudo
+```
+
+**✅ BEST - Don't Override Unless Necessary:**
+```python
+# If you only need standard portal access control, DON'T override _document_check_access!
+# The parent CustomerPortal class already handles it correctly.
+
+# Only override if you need ADDITIONAL checks for YOUR models:
+@http.route(['/my/custom-model/<int:model_id>'], type='http', auth="user", website=True)
+def portal_my_custom_model(self, model_id=None, access_token=None, **kw):
+    """Detail view with standard access control"""
+    try:
+        # Use parent's _document_check_access - it works correctly!
+        model_sudo = self._document_check_access('your.custom.model', model_id, access_token)
+    except (AccessError, MissingError):
+        return request.redirect('/my')
+
+    # Additional custom checks AFTER standard access control
+    if model_sudo.state == 'cancelled':
+        return request.redirect('/my/custom-models?error=cancelled')
+
+    values = {'model': model_sudo}
+    return request.render("your_module.portal_my_custom_model", values)
+```
+
+**Testing Checklist:**
+After overriding `_document_check_access`, test these core Odoo features:
+- [ ] Sale Order Preview button (backend → portal view)
+- [ ] Invoice portal access
+- [ ] Purchase Order portal access (if applicable)
+- [ ] Project/Task portal access (if applicable)
+- [ ] Any other portal documents your users access
+
+**Key Takeaways:**
+1. **Don't override `_document_check_access` unless absolutely necessary**
+2. **If you must override, use model-specific checks with explicit model names**
+3. **Never use `user_id` for ownership checks without model filtering**
+4. **Prefer `partner_id` for ownership - it's consistent across Odoo**
+5. **Test all portal document types after overriding**
 
 ### 3. Portal Counter Debugging and Troubleshooting
 
