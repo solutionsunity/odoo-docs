@@ -155,6 +155,186 @@ def create(self, vals_list):
 - Use `super().create(vals_list)` to call parent method
 - This pattern provides better performance and consistency with Odoo core
 
+### Copy/Duplicate Method Implementation (Model with Lines)
+
+**⚠️ CRITICAL: Use `copy_data()` not `copy()` for custom duplication logic**
+
+When implementing duplication for models with One2many lines (e.g., order.line, request.line), always override `copy_data()` and use `Command.create()` to explicitly copy lines.
+
+#### ✅ Correct Pattern (Following Odoo Standard)
+
+```python
+from odoo import models, fields, api, Command, _
+
+class ParentModel(models.Model):
+    _name = 'parent.model'
+
+    line_ids = fields.One2many('child.model', 'parent_id', string='Lines')
+
+    def copy_data(self, default=None):
+        """
+        Override copy_data to handle duplication properly
+        - Lines are explicitly copied using Command.create()
+        - Unwanted child records excluded via copy=False
+        - State/sequence fields reset as needed
+        """
+        if default is None:
+            default = {}
+
+        # Explicitly copy lines (with filtering if needed)
+        if 'line_ids' not in default:
+            default['line_ids'] = [
+                Command.create(line.copy_data()[0])
+                for line in self.line_ids
+                # Optional: Add filtering condition
+                # for line in self.line_ids.filtered(lambda l: not l.is_excluded)
+            ]
+
+        return super(ParentModel, self).copy_data(default)
+```
+
+**Child Model - Exclude Time-Specific Data:**
+```python
+class ChildModel(models.Model):
+    _name = 'child.model'
+
+    parent_id = fields.Many2one('parent.model', required=True)
+
+    # Time-specific data should NOT be copied
+    inspection_ids = fields.One2many(
+        'inspection.model',
+        'line_id',
+        string='Inspections',
+        copy=False  # ✅ Prevents copying time-specific data
+    )
+```
+
+#### Reference - Odoo Sale Order Pattern
+
+From `/usr/lib/python3/dist-packages/odoo/addons/sale/models/sale_order.py`:
+
+```python
+def copy_data(self, default=None):
+    if default is None:
+        default = {}
+    if 'order_line' not in default:
+        default['order_line'] = [
+            Command.create(line.copy_data()[0])
+            for line in self.order_line.filtered(lambda l: not l.is_downpayment)
+        ]
+    return super().copy_data(default)
+```
+
+#### Key Points
+
+| Aspect | Implementation |
+|--------|----------------|
+| **Method to override** | `copy_data()` not `copy()` |
+| **Import required** | `from odoo import Command` |
+| **Line copying** | `Command.create(line.copy_data()[0])` |
+| **Filtering** | Use `.filtered()` to exclude unwanted lines |
+| **Child exclusions** | Set `copy=False` on time-specific One2many fields |
+| **State reset** | Handled automatically by `copy=False` on fields |
+
+#### Common Use Cases
+
+**✅ Should be copied:**
+- Order lines, invoice lines, request lines
+- Product configurations, pricing data
+- Static reference data
+- User assignments (valuers, team members)
+
+**❌ Should NOT be copied (use `copy=False`):**
+- Time-specific data (inspections, logs, history)
+- Workflow-dependent records (payments, deliveries)
+- External system references (API IDs, sync data)
+- Computed aggregations (totals, counts)
+
+#### Complete Example - Valuation Request
+
+```python
+from odoo import models, fields, api, Command, _
+
+class RealestateValuationRequest(models.Model):
+    _name = 'realestate.valuation.request'
+
+    name = fields.Char(copy=False)  # New sequence on duplicate
+    state = fields.Selection(copy=False)  # Reset to draft
+    valuation_line_ids = fields.One2many(
+        'realestate.valuation.line',
+        'request_id',
+        string='Valuation Lines'
+    )
+
+    def copy_data(self, default=None):
+        """Duplicate request with lines but without inspections"""
+        if default is None:
+            default = {}
+
+        # Explicitly copy valuation lines
+        if 'valuation_line_ids' not in default:
+            default['valuation_line_ids'] = [
+                Command.create(line.copy_data()[0])
+                for line in self.valuation_line_ids
+            ]
+
+        return super(RealestateValuationRequest, self).copy_data(default)
+
+class RealestateValuationLine(models.Model):
+    _name = 'realestate.valuation.line'
+
+    request_id = fields.Many2one('realestate.valuation.request')
+    property_id = fields.Many2one('realestate.property')
+    final_value = fields.Monetary()  # Copied as reference
+
+    # Time-specific data - NOT copied
+    inspection_ids = fields.One2many(
+        'realestate.valuation.inspection',
+        'valuation_line_id',
+        copy=False  # ✅ Inspections are time-specific
+    )
+```
+
+#### Why This Pattern?
+
+1. **Odoo Standard**: Same pattern used in `sale.order`, `purchase.order`, `account.move`
+2. **Explicit Control**: Clear visibility of what gets copied
+3. **Filtering Support**: Easy to exclude specific lines (e.g., downpayments)
+4. **Performance**: Efficient batch creation of child records
+5. **Maintainable**: Single source of truth for duplication logic
+
+#### Common Mistakes
+
+❌ **Don't do this:**
+```python
+# Wrong - using copy() instead of copy_data()
+def copy(self, default=None):
+    default = dict(default or {})
+    return super().copy(default)
+
+# Wrong - relying on default One2many copy behavior
+# (Lines may not copy properly without explicit Command.create)
+
+# Wrong - forgetting to import Command
+from odoo import models, fields, api, _  # Missing Command!
+```
+
+✅ **Do this:**
+```python
+# Correct - override copy_data with Command.create
+from odoo import models, fields, api, Command, _
+
+def copy_data(self, default=None):
+    if default is None:
+        default = {}
+    if 'line_ids' not in default:
+        default['line_ids'] = [
+            Command.create(line.copy_data()[0])
+            for line in self.line_ids
+        ]
+    return super().copy_data(default)
+```
+
 ## Naming Conventions
 
 - State-tracking fields should follow the standard naming convention of 'state'
@@ -675,6 +855,276 @@ The new `<chatter/>` tag (Odoo 18.0+) automatically provides all chatter functio
 - In OWL templates, use t-props syntax instead of curly braces which cause compilation errors
 - Prefer using nextTick from @odoo/owl instead of setTimeout for deferred operations
 - Fields with ir.model as comodel cannot use ondelete='restrict' mode
+
+### Journal Entry Creation and Update Pattern (Odoo 17.0+)
+
+**⚠️ CRITICAL: Odoo 17.0 changed how computed fields work for account.move.line**
+
+#### The Problem
+
+In Odoo 17.0, the `balance` field on `account.move.line` has `precompute=True`, which causes Odoo's internal auto-balancing logic to **zero out the balance field during `create()`** BEFORE any compute methods are called. This breaks the traditional pattern of creating journal entry lines with balance values.
+
+**Symptoms:**
+- Journal entry lines created with balance values show zero debit/credit/balance
+- Lines appear in the UI but all amounts are 0.00
+- The issue only occurs in Odoo 17.0+, not in Odoo 15.0
+
+**Root Cause:**
+- Odoo's move balancing mechanism ensures debit = credit during line creation
+- The `balance` field is zeroed before `_compute_debit_credit` runs
+- Creating lines with balance in vals results in the value being discarded
+
+#### ✅ Correct Pattern: Create-Then-Write
+
+**Always use this pattern when creating journal entry lines in Odoo 17.0+:**
+
+```python
+# 1. Prepare line values WITHOUT balance
+line_vals = {
+    'move_id': move.id,
+    'account_id': account.id,
+    'name': 'Description',
+    'partner_id': partner.id,
+    # DO NOT include 'balance' here!
+}
+
+# 2. Extract balance value separately
+balance_value = 100.0  # Your calculated balance
+
+# 3. Create line WITHOUT balance
+line = env['account.move.line'].with_context(
+    check_move_validity=False,
+    skip_invoice_sync=True,
+    skip_account_move_synchronization=True,
+).create(line_vals)
+
+# 4. Write balance AFTER creation
+line.with_context(check_move_validity=False).write({
+    'balance': balance_value
+})
+
+# Result: Odoo's standard _compute_debit_credit will compute debit/credit from balance
+```
+
+#### Complete Example: Fee Journal Entry Creation
+
+```python
+def _create_fee_journal_entry(self):
+    """Create fee journal entry using Odoo 17.0 pattern."""
+    self.ensure_one()
+
+    # Create the move
+    fee_move = self.env['account.move'].with_context(
+        skip_invoice_sync=True,
+        check_move_validity=False,
+    ).create({
+        'journal_id': self.journal_id.id,
+        'date': self.date,
+        'ref': 'Bank Fee - %s' % self.name,
+        'move_type': 'entry',
+    })
+
+    # Prepare line values (returns list of tuples with balance)
+    line_vals_list = self._prepare_fee_move_lines()
+
+    # Create lines using create-then-write pattern
+    for cmd, dummy, vals in line_vals_list:
+        # Extract balance before creating
+        balance_value = vals.pop('balance')
+        vals['move_id'] = fee_move.id
+
+        # Create WITHOUT balance
+        line = self.env['account.move.line'].with_context(
+            skip_invoice_sync=True,
+            skip_account_move_synchronization=True,
+            check_move_validity=False,
+        ).create(vals)
+
+        # Write balance AFTER creation
+        line.with_context(check_move_validity=False).write({
+            'balance': balance_value
+        })
+
+    return fee_move
+
+def _prepare_fee_move_lines(self):
+    """Prepare line values with balance."""
+    lines = []
+
+    # Fee expense line (debit)
+    lines.append((0, 0, {
+        'account_id': self.journal_id.bank_fee_account_id.id,
+        'name': 'Bank Fee',
+        'balance': self.fee_amount,  # Positive = debit
+    }))
+
+    # Bank credit line (credit)
+    lines.append((0, 0, {
+        'account_id': self.outstanding_account_id.id,
+        'name': 'Bank Fee',
+        'balance': -self.fee_amount,  # Negative = credit
+    }))
+
+    return lines
+```
+
+#### Updating Existing Journal Entries
+
+When updating existing journal entry lines, use the same pattern:
+
+```python
+def _sync_fee_entry(self):
+    """Sync fee entry with payment changes."""
+    self.ensure_one()
+
+    if not self.fee_move_id:
+        return
+
+    fee_move = self.fee_move_id
+
+    # Delete old lines
+    fee_move.line_ids.unlink()
+
+    # Create new lines using create-then-write pattern
+    line_vals_list = self._prepare_fee_move_lines()
+
+    for cmd, dummy, vals in line_vals_list:
+        balance_value = vals.pop('balance')
+        vals['move_id'] = fee_move.id
+
+        # Create WITHOUT balance
+        line = self.env['account.move.line'].with_context(
+            skip_invoice_sync=True,
+            skip_account_move_synchronization=True,
+            check_move_validity=False,
+        ).create(vals)
+
+        # Write balance AFTER creation
+        line.with_context(check_move_validity=False).write({
+            'balance': balance_value
+        })
+```
+
+#### Context Flags Explained
+
+- `check_move_validity=False` - Disables move validation during line creation/update
+- `skip_invoice_sync=True` - Prevents invoice synchronization
+- `skip_account_move_synchronization=True` - Prevents move synchronization
+- Custom flags (e.g., `skip_fee_state_check=True`) - Module-specific flags
+
+#### Common Mistakes
+
+❌ **Don't do this:**
+```python
+# Wrong - balance will be zeroed during create()
+line = env['account.move.line'].create({
+    'move_id': move.id,
+    'account_id': account.id,
+    'balance': 100.0,  # This will be zeroed!
+})
+```
+
+❌ **Don't do this:**
+```python
+# Wrong - trying to override _compute_debit_credit
+@api.depends('balance')
+def _compute_debit_credit(self):
+    # Unnecessary - Odoo's standard logic works with create-then-write
+    pass
+```
+
+✅ **Do this:**
+```python
+# Correct - create without balance, then write balance
+line = env['account.move.line'].create(vals_without_balance)
+line.write({'balance': balance_value})
+```
+
+#### Variable Naming: Avoid Shadowing Translation Function
+
+**⚠️ CRITICAL: Never use `_` as a variable name in for loops**
+
+```python
+# ❌ WRONG - shadows the translation function
+from odoo import _, models
+
+for cmd, _, vals in line_vals_list:  # _ shadows translation function!
+    raise UserError(_('Error'))  # UnboundLocalError!
+
+# ✅ CORRECT - use 'dummy' or descriptive name
+for cmd, dummy, vals in line_vals_list:
+    raise UserError(_('Error'))  # Works correctly
+```
+
+**Why this matters:**
+- Python treats `_` as a local variable when assigned in a for loop
+- This shadows the imported `_` translation function
+- Results in `UnboundLocalError: cannot access local variable '_'`
+- The error only appears when you try to use `_()` later in the same scope
+
+#### Benefits of This Pattern
+
+1. **✅ Works with Odoo 17.0 field architecture** - Respects precompute behavior
+2. **✅ No custom overrides needed** - Uses Odoo's standard `_compute_debit_credit`
+3. **✅ Minimal code** - Clean, simple solution
+4. **✅ Fully tested** - Pattern validated across all scenarios
+
+#### Testing
+
+Always test journal entry creation with:
+- Lines WITHOUT tax (simple 2-line entries)
+- Lines WITH tax (3-4 line entries depending on structure)
+- Verify ALL three values: debit, credit, balance
+
+```python
+def test_journal_entry_values(self):
+    """Test that all three values are correct."""
+    # Create entry
+    payment.action_post()
+
+    # Check fee line
+    fee_line = payment.fee_move_id.line_ids.filtered(
+        lambda l: l.account_id == fee_account
+    )
+    self.assertEqual(fee_line.debit, 50.0)
+    self.assertEqual(fee_line.credit, 0.0)
+    self.assertEqual(fee_line.balance, 50.0)
+
+    # Check bank line
+    bank_line = payment.fee_move_id.line_ids.filtered(
+        lambda l: l.account_id == bank_account
+    )
+    self.assertEqual(bank_line.debit, 0.0)
+    self.assertEqual(bank_line.credit, 50.0)
+    self.assertEqual(bank_line.balance, -50.0)
+```
+
+#### Reference Implementation
+
+See `account_payment_fee` module (v17.0.1.0.4) for complete working example:
+- `models/account_payment.py` - `_create_fee_journal_entry()` and `_sync_fee_entry()`
+- `tests/test_payment_fee.py` - Comprehensive test coverage
+
+#### Migration from Odoo 15.0
+
+If migrating from Odoo 15.0 where the old pattern worked:
+
+**Odoo 15.0 (old pattern):**
+```python
+# This worked in Odoo 15.0
+line = env['account.move.line'].create({
+    'balance': 100.0,  # Worked fine in 15.0
+})
+```
+
+**Odoo 17.0 (new pattern):**
+```python
+# Required in Odoo 17.0
+line = env['account.move.line'].create(vals_without_balance)
+line.write({'balance': 100.0})  # Must write after creation
+```
+
+This pattern is **mandatory** for Odoo 17.0+ and ensures correct debit/credit/balance values in all journal entry lines.
 
 ## Odoo 18.0 Specifics
 
