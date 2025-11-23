@@ -4,9 +4,9 @@
 
 ### CSV + XML Security Pattern (CRITICAL)
 
-**⚠️ NEVER mix CSV permissions with XML `perm_*` attributes - this causes problematic implementations!**
+**⚠️ AVOID mixing CSV permissions with XML `perm_*` attributes unless required for specific business cases!**
 
-#### ✅ Correct Approach: Separation of Concerns
+#### ✅ Standard Approach: Separation of Concerns
 
 **CSV File (`security/ir.model.access.csv`)**: Controls ALL permissions
 ```csv
@@ -34,34 +34,65 @@ access_model_user,model.user,model_my_model,group_my_user,1,1,1,0
 </record>
 ```
 
-#### ❌ Problematic Approach: Mixing Systems
+#### ✅ Exception: Using `perm_*` for Fine-Grained Control
+
+**Valid use case**: When CSV grants broad permissions but specific business rules require trimming permissions for certain groups.
+
+**Example**: Auditor group needs read-only access while User group needs write access to own records.
+
+```csv
+# CSV grants base permissions
+access_model_auditor,model.auditor,model_my_model,group_auditor,1,0,0,0
+access_model_user,model.user,model_my_model,group_user,1,1,1,0
+```
 
 ```xml
-<!-- ❌ WRONG: Mixing permissions in XML causes access conflicts -->
+<!-- Auditor: Read all records (perm_* enforces read-only) -->
+<record id="rule_my_model_auditor" model="ir.rule">
+    <field name="name">My Model: Auditor read-only</field>
+    <field name="model_id" ref="model_my_model"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="False"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+    <field name="groups" eval="[(4, ref('group_auditor'))]"/>
+</record>
+
+<!-- User: Write own records only -->
 <record id="rule_my_model_user" model="ir.rule">
+    <field name="name">My Model: User own records</field>
+    <field name="model_id" ref="model_my_model"/>
     <field name="domain_force">[('user_id', '=', user.id)]</field>
     <field name="perm_read" eval="True"/>
-    <field name="perm_write" eval="False"/>  <!-- ❌ Conflicts with CSV -->
+    <field name="perm_write" eval="True"/>
     <field name="perm_create" eval="True"/>
     <field name="perm_unlink" eval="False"/>
+    <field name="groups" eval="[(4, ref('group_user'))]"/>
 </record>
 ```
+
+**When to use `perm_*` in XML:**
+- ✅ Compliance/audit roles requiring read-only access to all records
+- ✅ Multiple groups with overlapping domains but different permission levels
+- ✅ Business requirement to restrict CSV-granted permissions based on record domain
+- ❌ NOT for standard hierarchical permissions (use CSV only)
 
 #### Security Architecture
 
 ```
-┌─────────────────┐    ┌──────────────────┐
-│   CSV File      │    │   XML File       │
-│                 │    │                  │
-│ ✅ Permissions  │    │ ✅ Groups        │
-│ - Read: 1/0     │    │ - Definition     │
-│ - Write: 1/0    │    │ - Hierarchy      │
-│ - Create: 1/0   │    │                  │
-│ - Delete: 1/0   │    │ ✅ Record Rules  │
-│                 │    │ - Domain: [...]  │
-│                 │    │ - Groups: [...]  │
-│                 │    │ NO perm_* attrs  │
-└─────────────────┘    └──────────────────┘
+┌─────────────────┐    ┌──────────────────────────────┐
+│   CSV File      │    │   XML File                   │
+│                 │    │                              │
+│ ✅ Permissions  │    │ ✅ Groups                    │
+│ - Read: 1/0     │    │ - Definition                 │
+│ - Write: 1/0    │    │ - Hierarchy                  │
+│ - Create: 1/0   │    │                              │
+│ - Delete: 1/0   │    │ ✅ Record Rules              │
+│                 │    │ - Domain: [...]              │
+│                 │    │ - Groups: [...]              │
+│                 │    │ - perm_* (when needed)       │
+└─────────────────┘    └──────────────────────────────┘
 ```
 
 #### Benefits of Proper Separation
