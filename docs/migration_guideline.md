@@ -89,6 +89,47 @@ def write(self, vals):
 - Custom models with mail thread functionality must implement `_get_thread_with_access` method
 - This ensures proper access control for threaded discussions
 
+## Migration Script Naming Convention ⚠️
+
+> **Verified for Odoo 17.0. Likely the same for 18.0 — verify against `/usr/lib/python3/dist-packages/odoo/modules/migration.py` line ~64 when working on 18.0.**
+
+Migration script file names **must use a hyphen** (`-`) after the stage prefix, not an underscore.
+
+| ✅ Correct | ❌ Wrong (silently ignored) |
+|---|---|
+| `pre-migrate.py` | `pre_migrate.py` |
+| `post-migrate.py` | `post_migrate.py` |
+| `pre-update_table_x.py` | `pre_update_table_x.py` |
+
+Odoo's migration loader (`migration.py`) uses:
+```python
+if os.path.basename(f).startswith(f"{stage}-")
+```
+
+Files with underscores (`pre_migrate.py`) are **silently skipped** — no error, no warning, the upgrade
+succeeds but the migration never runs. This is extremely hard to diagnose.
+
+**Stages:**
+- `pre-` — runs before the module Python code loads (use for raw SQL, safe for column renames)
+- `post-` — runs after data XML is loaded (use for ORM operations, data population)
+- `end-` — runs after all modules are loaded
+
+**Migration file structure:**
+```
+migrations/
+  17.0.1.x.y/
+    pre-migrate.py    ← runs before module loads
+    post-migrate.py   ← runs after data XML
+```
+
+**Function signature** (same for all stages):
+```python
+def migrate(cr, version):
+    if not version:   # skip fresh installs
+        return
+    cr.execute("UPDATE ...")
+```
+
 ## Common Migration Challenges
 
 ### 1. Database Schema Changes
@@ -321,6 +362,12 @@ def write(self, vals):
     # Custom code after super
     return result
 ```
+
+## Migration Script Naming Convention ⚠️
+
+> **Not yet verified for Odoo 18.0.** Check `/usr/lib/python3/dist-packages/odoo/modules/migration.py` line ~64 for the `startswith` pattern used by the migration loader. If it still matches `startswith(f"{stage}-")`, the same hyphen rule applies.
+>
+> Confirmed in Odoo 17.0 — see the 17.0 section above for full details.
 
 ## Common Migration Challenges (17.0 → 18.0)
 
