@@ -985,3 +985,116 @@ When migrating from Odoo 15 to 17+:
 3. **Hybrid modules**: Gradually migrate legacy parts to modern OWL
 
 This guide should be updated as new patterns and best practices are discovered during OWL component development in Odoo 15+.
+
+---
+
+## Odoo 18 Specific Findings
+
+### Event Handler `this` Binding — Critical Pitfall
+
+**Problem:** In OWL 2 (Odoo 17+), using arrow functions or anonymous wrappers in `t-on-*` expressions silently loses `this` context.
+
+```xml
+<!-- ❌ BROKEN — this is undefined inside toggleLock -->
+<button t-on-click="() => toggleLock('sales')">...</button>
+
+<!-- ❌ BROKEN — this is undefined inside onFieldChange -->
+<input t-on-change="(ev) => onFieldChange(fld, ev)"/>
+```
+
+The template compiler extracts the function reference without binding it to the component instance. `this` becomes `undefined` inside the method in strict mode, causing a `TypeError`.
+
+**Fix:** Use direct method references (`t-on-click="methodName"`) and pass arguments via `data-*` attributes, read with `ev.currentTarget.dataset`.
+
+```xml
+<!-- ✅ CORRECT — OWL binds this automatically for direct references -->
+<button data-section="sales" t-on-click="onLockToggle">...</button>
+<input t-att-data-field="fld" t-on-change="onFieldChange"/>
+```
+
+```js
+// ✅ Read arguments from dataset
+onLockToggle(ev) {
+    const section = ev.currentTarget.dataset.section;
+    if (this.isDraft && section) {
+        this.locks[section] = !this.locks[section];
+    }
+}
+
+onFieldChange(ev) {
+    const fieldName = ev.currentTarget.dataset.field;
+    const v = parseFloat(ev.currentTarget.value);
+    this.props.record.update({ [fieldName]: isNaN(v) ? 0 : v });
+}
+```
+
+**Rule:** Only `t-on-event="methodName"` (bare method reference) guarantees `this` is the component instance. Never use inline arrow functions or wrappers in template expressions.
+
+---
+
+### Component Registries — Three Distinct Types
+
+Odoo 18 has three registries for embedding UI components. They have different scopes, standard props, and use cases.
+
+| Registry | Embedded via | Standard Props Export | Use case |
+|---|---|---|---|
+| `fields` | `<field name="..."/>` | `standardFieldProps` from `@web/views/fields/standard_field_props` | Single field widget — reads/writes one field |
+| `actions` | `<Action>` client actions | `standardActionServiceProps` from `@web/webclient/actions/...` | Full-page action components |
+| `view_widgets` | `<widget name="..."/>` | *None exported* — manual declaration required | Multi-field UI blocks embedded inside a form view |
+
+#### `view_widgets` — What the Renderer Passes
+
+When you register a component in `view_widgets`, the form renderer automatically passes:
+
+```js
+static props = {
+    record: { type: Object },       // the form record (read/write via record.data / record.update)
+    readonly: { type: Boolean, optional: true },
+    class: { type: String, optional: true },
+};
+```
+
+There is no `standardViewWidgetProps` export in Odoo 18. Declare the three props manually.
+
+#### When to use `view_widgets` vs `fields`
+
+- Use `view_widgets` when the component needs to **read or write multiple fields** simultaneously (e.g., a VAT filing grid that covers 30+ box fields).
+- Use `fields` when the component is a **replacement renderer for a single field** (e.g., a custom monetary input, a star rating widget).
+- Use `actions` for **full-page client actions** opened from the action manager.
+
+#### Making all box fields available to the widget
+
+Fields not visible in the form view are not loaded into `record.data` unless declared somewhere in the view. The pattern is to declare them as `invisible="1"` in the form view:
+
+```xml
+<!-- Declare all box fields invisible so they load into record.data -->
+<field name="sales_box1_amount" invisible="1"/>
+<field name="sales_box1_vat" invisible="1"/>
+<!-- ... all other box fields ... -->
+
+<!-- Then embed the widget -->
+<widget name="vat_filing_boxes"/>
+```
+
+The widget reads them directly via `this.props.record.data.field_name` and writes via `this.props.record.update({ field_name: value })`.
+
+---
+
+### Translation in OWL Templates (Odoo 18)
+
+Static text nodes inside elements are automatically extracted and translated by Odoo's i18n system (`--i18n-export`):
+
+```xml
+<th>Amount</th>              <!-- ✅ translated (static text node) -->
+<span>Total Sales</span>     <!-- ✅ translated (static text node) -->
+```
+
+These are **not** translated:
+
+```xml
+<th t-esc="'Amount'"/>           <!-- ❌ JS string expression -->
+<input placeholder="Amount"/>    <!-- ❌ attribute value -->
+<t t-esc="someVariable"/>        <!-- ❌ dynamic value -->
+```
+
+**Practical rule:** If the label is hardcoded visible text (not in an attribute), it will be translated. No special markup needed.
