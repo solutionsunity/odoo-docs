@@ -803,6 +803,120 @@ ExistingComponent.props = {
 
 This comprehensive approach ensures that your field widgets and OWL components work reliably across different scenarios, pass validation checks, and provide a smooth user experience.
 
+---
+
+## Cross-Module Component Patching (Odoo 17+ / `@odoo-module`)
+
+### Problem
+
+When you try to `patch()` a component defined in another custom module using a direct import:
+
+```js
+/** @odoo-module **/
+import { patch } from "@web/core/utils/patch";
+import { PageTranslationPanel } from "@my_dep_module/src/js/some_component";
+
+patch(PageTranslationPanel.prototype, { ... });
+```
+
+You may see this in the browser devtools:
+
+```
+The following modules are needed by other modules but have not been defined,
+they may not be present in the correct asset bundle: Array(1)
+```
+
+Followed by the OWL lifecycle error that the state initialized in the patched `setup()` is `undefined`.
+
+### Root Cause
+
+In Odoo 17's `@odoo-module` lazy evaluation system, **there is no guaranteed evaluation order** between your module and the module you're importing from — unless there is an explicit `import` dependency chain. When both modules are in the same asset bundle, the loader may evaluate your module before the target module has run, leaving the import unresolved.
+
+This is different from direct imports **within the same module**: those are always resolved because the loader processes the dependency chain. The problem occurs specifically with **cross-module imports of custom addon components** where the loader cannot infer the correct order without an explicit chain.
+
+### Solution: Retrieve from the Registry
+
+Use the field registry (or any other populated registry) to get the component at evaluation time instead of a direct import. Manifest dependencies guarantee that `dependency` addon's assets are bundled and evaluated **before** your addon's assets, so the registry entry is guaranteed to exist:
+
+```js
+/** @odoo-module **/
+
+import { useState } from "@odoo/owl";
+import { patch } from "@web/core/utils/patch";
+import { registry } from "@web/core/registry";
+
+// Safe: registry is populated by the dependency module before this module runs.
+const { component: PageTranslationPanel } = registry.category("fields").get("page_translation_panel");
+
+patch(PageTranslationPanel.prototype, {
+    setup() {
+        super.setup(...arguments);   // ← always pass ...arguments
+        this.myState = useState({ loading: false });
+    },
+
+    async onMyAction() {
+        // access this.orm, this.notification, etc. (set by super.setup)
+    },
+});
+```
+
+**Key points:**
+
+| Rule | Reason |
+|---|---|
+| Use registry lookup, not direct import | Avoids unresolved module at evaluation time |
+| `super.setup(...arguments)` not `super.setup()` | Confirmed Odoo 17 pattern (see `mail/discuss/call/common/discuss_patch.js`) |
+| Comma after each method in the patch object | Patch object is a plain object literal, not a class body |
+| `useState` / `useService` work in patched `setup()` | OWL hooks work in any `setup()` call within the component tree |
+
+### Confirmed Odoo 17 Prototype Patch Pattern
+
+This is the exact pattern used in Odoo 17 core (`mail/discuss/call/common/discuss_patch.js`):
+
+```js
+/* @odoo-module */
+import { Discuss } from "@mail/core/common/discuss";
+import { useState } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
+import { patch } from "@web/core/utils/patch";
+
+patch(Discuss.prototype, {
+    setup() {
+        super.setup(...arguments);
+        this.rtc = useState(useService("discuss.rtc"));
+    },
+});
+```
+
+The `@mail/core/common/discuss` import works here because both are in the same `mail` module — no cross-addon import boundary.
+
+### When Direct Import Works vs. When Registry Is Needed
+
+| Scenario | Use |
+|---|---|
+| Patching a component in the **same addon** | Direct import — safe |
+| Patching a component in **Odoo core** (`@web/...`, `@mail/...`) | Direct import — safe (core always loads first) |
+| Patching a component in **another custom addon** | Registry lookup — required |
+
+### Companion: QWeb Template Extension
+
+Use `t-inherit` in a separate XML file to extend the template. The `setup()` patch adds new state; the template inherits and uses it:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="my_dep_module.SomeComponent" t-inherit-mode="extension">
+        <xpath expr="//th[hasclass('o_col_status')]" position="after">
+            <th class="o_col_ai text-center"/>
+        </xpath>
+    </t>
+</templates>
+```
+
+Ensure the XML asset is declared **before** the JS asset in `__manifest__.py` so QWeb processes the template before the component class is instantiated.
+
+---
+
 ## Odoo 15 Decision Guide: Legacy vs Modern OWL
 
 ### When to Use Legacy JavaScript Patterns (Odoo 15)

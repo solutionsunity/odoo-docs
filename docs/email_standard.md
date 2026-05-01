@@ -171,7 +171,7 @@ def _send_notification(self, notification_type):
 ```xml
 <!-- Standard Header -->
 <div style="background-color: #DDDDDD; color: #FFFFFF; text-align: center; padding: 16px;">
-    <img t-attf-src="/web/image/res.company/{{user.company_id.id}}/logo" t-att-alt="user.company_id.name + ' Logo'" style="box-sizing: border-box; vertical-align: middle; max-height: 75px;"/>
+    <img t-attf-src="/web/image/res.company/{{user.company_id.id}}/logo" t-att-alt="user.company_id.name + ' Logo'" style="box-sizing: border-box; vertical-align: middle; max-height: 75px; max-width: 200px; height: auto;"/>
     <h2 t-attf-style="color:{{user.company_id.email_primary_color or '#212529'}};">Template Title</h2>
 </div>
 

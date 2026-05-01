@@ -372,6 +372,30 @@ def copy_data(self, default=None):
 - Avoid using 'default_' prefix for field names as it is reserved for Odoo internals
 - Use clear, descriptive names for methods and variables
 
+
+## Shared Field Groups for Decorator Triggers
+
+When multiple `@api.depends`, `@api.onchange`, or `@api.constrains` decorators share overlapping field lists, define the fields once as module-level tuples and unpack them with `*`. This prevents drift bugs (forgetting to add a field in one decorator) and keeps a single source of truth.
+
+```python
+# Module-level constants — single source of truth
+INCOME_INPUTS = ('total_income', 'vacancy_rate', 'credit_loss_rate')
+RATE_INPUTS = ('operating_capex_rate', 'capitalization_rate')
+ALL_INPUTS = INCOME_INPUTS + RATE_INPUTS
+
+# Unpack in decorators
+@api.depends(*INCOME_INPUTS, *RATE_INPUTS, 'discount_rate')
+def _compute_financial_metrics(self):
+    ...
+
+@api.onchange('enable_projection', *ALL_INPUTS)
+def _onchange_projection_parameters(self):
+    ...
+```
+
+**Validated in Odoo core:** `hr_homeworking` (`DAYS` list in `@api.depends`), `product` (`PRICE_CONTEXT_KEYS` in `@api.depends_context`).
+
+
 ## Computed Fields with Search
 
 For computed fields that need to be searchable but cannot/should not be stored:
@@ -697,6 +721,64 @@ def action_save_record(self):
 - In XML data files, use noupdate="0" for master data to ensure changes are picked up when updating modules
 - Use noupdate="1" for initial values that should not be overwritten on module update
 - Use format_html() with _get_html_link() helper to create clickable record links in chatter messages
+
+### ⚠️ XML Upgrade Rule: Removing a field tag does NOT reset its DB value
+
+When you **remove** a field from an XML record declaration and run `-u`, Odoo only writes the fields
+**explicitly present** in the XML — it does not touch fields that are absent. The DB retains the old value.
+
+This is the same principle as `required=True` vs `required=False` — omitting the attribute is not the
+same as setting it to its opposite.
+
+**Rule: to reset or clear a field value on upgrade, you must explicitly write the new value in the XML.**
+
+```xml
+<!-- ❌ Wrong — removing the line leaves the old DB value intact on upgrade -->
+<record id="action_foo" model="ir.actions.act_window">
+    <field name="name">Foo</field>
+    <!-- context line removed — DB still has the old value after -u -->
+</record>
+
+<!-- ✅ Correct — explicitly declare the new value so Odoo overwrites it -->
+<record id="action_foo" model="ir.actions.act_window">
+    <field name="name">Foo</field>
+    <field name="context">{}</field>
+</record>
+```
+
+This applies to all field types: `context`, `domain`, `help`, `groups`, `active`, etc.
+When in doubt, always declare the field explicitly rather than relying on absence to reset it.
+
+### ⚠️ Same Rule Applies to Python Field Parameters
+
+Removing a parameter from a field definition does **not** reset it — Odoo only applies what is
+explicitly declared. The ORM and DB retain the previous behavior until the opposite is stated.
+
+```python
+# ❌ Wrong — removing required=True does NOT make the field optional on upgrade
+name = fields.Char()
+
+# ✅ Correct — explicitly declare the new state
+name = fields.Char(required=False)
+```
+
+```python
+# ❌ Wrong — removing default does NOT clear existing default behavior
+amount = fields.Float()
+
+# ✅ Correct — explicitly set to False/None to remove a default
+amount = fields.Float(default=0.0)
+```
+
+Common parameters where this matters:
+- `required` → must set `required=False` to un-require
+- `readonly` → must set `readonly=False` to make editable
+- `index` → must set `index=False` to drop the DB index
+- `copy` → must set `copy=True/False` explicitly
+- `store` → must set `store=True/False` explicitly
+- `default` → removing it leaves the old default; set `default=None` to clear
+
+**Rule: explicit always wins over absent. Never rely on omission to undo a declaration.**
 
 ### Binary Field Widget Usage
 
